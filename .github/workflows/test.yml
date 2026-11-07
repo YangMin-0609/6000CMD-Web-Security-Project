@@ -81,9 +81,10 @@ jobs:
         run: |
           uv run coverage lcov
 
-      - name: Upload coverage to Coveralls
+      - name: Upload coverage artifact
         if: matrix.python-version == '3.12' && matrix.django-version == '5.2'
-        uses: coverallsapp/github-action@v2
+        uses: actions/upload-artifact@v7
         with:
-          file: coverage.lcov
-          format: lcov
+          name: coverage-python-3.12-django-5.2
+          path: coverage.lcov
+          if-no-files-found: error
