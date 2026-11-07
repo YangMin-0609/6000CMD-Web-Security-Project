@@ -20,6 +20,7 @@ packages = [
 dependencies = [
     "django>=4.2",
     "django-bootstrap4-form",
+    "packaging",
     "celery",
     "email-reply-parser",
     "akismet",
