@@ -11,3 +11,7 @@ class HelpdeskConfig(AppConfig):
 
     def ready(self):
         from . import webhooks  # noqa: F401
+        from .login_rate_limit import connect_signals
+
+        # SEC-03: count failed / successful logins for rate limiting
+        connect_signals()

@@ -239,6 +239,56 @@ FIXTURE_DIRS = [os.path.join(BASE_DIR, "fixtures")]
 # for Django 3.2+, set default for autofields:
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
+
+# ---------------------------------------------------------------------------
+# SEC-03: Login rate limiting (see src/helpdesk/login_rate_limit.py)
+# ---------------------------------------------------------------------------
+# The rate-limit backend must come FIRST so a locked username/IP is refused
+# before the password is checked. It covers /login/, /admin/login/,
+# /api/auth/login/ and HTTP Basic authentication on the API.
+AUTHENTICATION_BACKENDS = [
+    "helpdesk.login_rate_limit.LoginRateLimitBackend",
+    "django.contrib.auth.backends.ModelBackend",
+]
+MIDDLEWARE += ["helpdesk.login_rate_limit.LoginRateLimitMiddleware"]
+
+HELPDESK_LOGIN_RATE_LIMIT_ENABLED = True
+HELPDESK_LOGIN_FAILURE_LIMIT = 5  # failures per username + IP
+HELPDESK_LOGIN_IP_FAILURE_LIMIT = 20  # failures per IP (password spraying)
+HELPDESK_LOGIN_FAILURE_WINDOW = 15 * 60  # count failures for 15 minutes
+HELPDESK_LOGIN_LOCKOUT_SECONDS = 15 * 60  # lock for 15 minutes
+# Only set to True when running behind a trusted reverse proxy
+HELPDESK_LOGIN_TRUST_X_FORWARDED_FOR = False
+
+# The counters live in Django's cache. The default local-memory cache is fine
+# for this single-process demo; a deployment with several worker processes
+# needs a shared cache such as Redis so all workers see the same counters.
+
+# Security events (failed logins, lockouts, blocked attempts) are written to
+# the console and to demodesk/security.log (*.log is git-ignored).
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "security": {"format": "%(asctime)s %(levelname)s %(name)s %(message)s"},
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "security"},
+        "security_file": {
+            "class": "logging.FileHandler",
+            "filename": os.path.join(BASE_DIR, "security.log"),
+            "formatter": "security",
+        },
+    },
+    "loggers": {
+        "helpdesk.security": {
+            "handlers": ["console", "security_file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}
+
 try:
     from .local_settings import *
 except ImportError:
