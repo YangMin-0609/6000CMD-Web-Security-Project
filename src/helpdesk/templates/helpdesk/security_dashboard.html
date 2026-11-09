@@ -1,0 +1,190 @@
+{% extends "helpdesk/base.html" %}{% load i18n %}
+{% comment %}
+  3.2.5 Security dashboard. All values are rendered with Django's automatic
+  HTML escaping, so attacker-controlled text (e.g. a username typed into the
+  login form) cannot run as script here.
+{% endcomment %}
+
+{% block helpdesk_title %}{% trans "Security Log" %}{% endblock %}
+
+{% block helpdesk_breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'helpdesk:dashboard' %}">{% trans "Dashboard" %}</a></li>
+<li class="breadcrumb-item active">{% trans "Security Log" %}</li>
+{% endblock %}
+
+{% block helpdesk_body %}
+<h2 class="mb-1">{% trans "Security Log" %}</h2>
+<p class="text-muted small mb-3">
+  {% if full_access %}
+    {% trans "Administrator view: all security events with full details." %}
+  {% else %}
+    {% trans "Personal view: security events about your own account. IP addresses are partly hidden." %}
+  {% endif %}
+</p>
+
+{% for alert in alerts %}
+<div class="alert alert-{{ alert.level }}" role="alert">
+  <i class="fas fa-exclamation-triangle me-1"></i> {{ alert.text }}
+</div>
+{% endfor %}
+
+<!-- Summary of the last 24 hours -->
+<div class="row">
+  <div class="col-xl-3 col-sm-6 mb-3">
+    <div class="card text-white bg-warning h-100"><div class="card-body">
+      <div class="fs-3">{{ summary.failed_logins }}</div>
+      <div>{% trans "Failed / blocked logins (24h)" %}</div>
+    </div></div>
+  </div>
+  <div class="col-xl-3 col-sm-6 mb-3">
+    <div class="card text-white bg-danger h-100"><div class="card-body">
+      <div class="fs-3">{{ summary.lockouts }}</div>
+      <div>{% trans "Account lockouts (24h)" %}</div>
+    </div></div>
+  </div>
+  <div class="col-xl-3 col-sm-6 mb-3">
+    <div class="card text-white bg-secondary h-100"><div class="card-body">
+      <div class="fs-3">{{ summary.permission_denials }}</div>
+      <div>{% trans "Permission denials (24h)" %}</div>
+    </div></div>
+  </div>
+  <div class="col-xl-3 col-sm-6 mb-3">
+    <div class="card text-white bg-primary h-100"><div class="card-body">
+      <div class="fs-3">{{ summary.privilege_changes }}</div>
+      <div>{% trans "Privilege / role changes (24h)" %}</div>
+    </div></div>
+  </div>
+</div>
+
+<div class="row">
+  <!-- Activity over the last 7 days -->
+  <div class="{% if full_access %}col-lg-8{% else %}col-12{% endif %} mb-3">
+    <div class="card h-100">
+      <div class="card-header">{% trans "Last 7 days: failed logins and permission denials" %}</div>
+      <div class="card-body">
+        <table class="table table-sm mb-0">
+          {% for d in daily %}
+          <tr>
+            <td class="text-nowrap" style="width: 7rem">{{ d.day|date:"D d M" }}</td>
+            <td>
+              <div class="d-flex" style="height: 1.1rem">
+                <div class="bg-warning" style="width: {{ d.failed_pct }}%" title="{% trans 'Failed logins' %}"></div>
+                <div class="bg-secondary" style="width: {{ d.denied_pct }}%" title="{% trans 'Permission denials' %}"></div>
+              </div>
+            </td>
+            <td class="text-nowrap small" style="width: 9rem">{{ d.failed }} {% trans "failed" %} / {{ d.denied }} {% trans "denied" %}</td>
+          </tr>
+          {% endfor %}
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {% if full_access %}
+  <!-- Top source IPs of failed logins (superusers only) -->
+  <div class="col-lg-4 mb-3">
+    <div class="card h-100">
+      <div class="card-header">{% trans "Top IPs by failed logins (24h)" %}</div>
+      <ul class="list-group list-group-flush">
+        {% for row in top_ips %}
+        <li class="list-group-item d-flex justify-content-between">
+          <code>{{ row.ip_address }}</code><span class="badge text-bg-warning">{{ row.n }}</span>
+        </li>
+        {% empty %}
+        <li class="list-group-item text-muted">{% trans "No failed logins in the last 24 hours." %}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Search and filtering -->
+<form method="get" class="row g-2 align-items-end mb-3">
+  <div class="col-md-3">
+    <label class="form-label small" for="event_type">{% trans "Event" %}</label>
+    <select class="form-select form-select-sm" id="event_type" name="event_type">
+      <option value="">{% trans "All events" %}</option>
+      {% for value, label in event_types %}
+      <option value="{{ value }}"{% if filters.event_type == value %} selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
+    <label class="form-label small" for="severity">{% trans "Severity" %}</label>
+    <select class="form-select form-select-sm" id="severity" name="severity">
+      <option value="">{% trans "Any" %}</option>
+      {% for value, label in severities %}
+      <option value="{{ value }}"{% if filters.severity == value %} selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-3">
+    <label class="form-label small" for="q">{% if full_access %}{% trans "Account, IP or details" %}{% else %}{% trans "Search details" %}{% endif %}</label>
+    <input class="form-control form-control-sm" id="q" name="q" value="{{ filters.q }}" maxlength="100">
+  </div>
+  <div class="col-md-2">
+    <label class="form-label small" for="date_from">{% trans "From" %}</label>
+    <input class="form-control form-control-sm" type="date" id="date_from" name="date_from" value="{{ filters.date_from }}">
+  </div>
+  <div class="col-md-2">
+    <label class="form-label small" for="date_to">{% trans "To" %}</label>
+    <input class="form-control form-control-sm" type="date" id="date_to" name="date_to" value="{{ filters.date_to }}">
+  </div>
+  <div class="col-12">
+    <button class="btn btn-primary btn-sm" type="submit">{% trans "Filter" %}</button>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'helpdesk:security_dashboard' %}">{% trans "Reset" %}</a>
+    <span class="small text-muted ms-2">{% blocktrans count counter=page.paginator.count %}{{ counter }} event{% plural %}{{ counter }} events{% endblocktrans %}</span>
+  </div>
+</form>
+
+<!-- Event list -->
+<div class="table-responsive">
+  <table class="table table-sm table-hover align-middle">
+    <thead>
+      <tr>
+        <th>{% trans "Time" %}</th>
+        <th>{% trans "Event" %}</th>
+        <th>{% trans "Severity" %}</th>
+        <th>{% trans "Account" %}</th>
+        <th>{% trans "Performed by" %}</th>
+        <th>{% trans "IP address" %}</th>
+        <th>{% trans "Details" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td class="text-nowrap small">{{ row.event.timestamp|date:"Y-m-d H:i:s" }}</td>
+        <td class="text-nowrap">{{ row.event.get_event_type_display }}</td>
+        <td>
+          <span class="badge {% if row.event.severity == 'CRITICAL' %}text-bg-danger{% elif row.event.severity == 'WARNING' %}text-bg-warning{% else %}text-bg-secondary{% endif %}">
+            {{ row.event.get_severity_display }}
+          </span>
+        </td>
+        <td>{{ row.event.username|default:"-" }}</td>
+        <td>{{ row.event.actor.get_username|default:"-" }}</td>
+        <td><code>{{ row.ip|default:"-" }}</code></td>
+        <td class="small">{{ row.event.description }}{% if row.event.path %}<br><span class="text-muted">{{ row.event.path }}</span>{% endif %}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7" class="text-muted">{% trans "No security events match these filters." %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if page.has_other_pages %}
+<nav>
+  <ul class="pagination pagination-sm">
+    {% if page.has_previous %}
+    <li class="page-item"><a class="page-link" href="?{{ query_string }}{% if query_string %}&amp;{% endif %}page={{ page.previous_page_number }}">{% trans "Previous" %}</a></li>
+    {% endif %}
+    <li class="page-item disabled"><span class="page-link">{{ page.number }} / {{ page.paginator.num_pages }}</span></li>
+    {% if page.has_next %}
+    <li class="page-item"><a class="page-link" href="?{{ query_string }}{% if query_string %}&amp;{% endif %}page={{ page.next_page_number }}">{% trans "Next" %}</a></li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+{% endblock %}

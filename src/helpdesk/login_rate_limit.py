@@ -199,6 +199,14 @@ def _lock(cache, lock_key, count_key, scope, username, ip, failures):
         "LOGIN_LOCKOUT scope=%s username=%s ip=%s failures=%d lockout_seconds=%d",
         scope, _safe_for_log(username), ip, failures, seconds,
     )
+    # 3.2.4: also store the event for the security dashboard
+    from .security_audit import record
+
+    record(
+        "LOGIN_LOCKOUT", username=username or "", severity="CRITICAL", ip=ip,
+        description=f"Locked for {seconds // 60} min after {failures} failures (scope: {scope})",
+        log=False,
+    )
 
 
 def register_failure(username, ip):
@@ -255,6 +263,15 @@ class LoginRateLimitBackend(BaseBackend):
             logger.warning(
                 "LOGIN_BLOCKED username=%s ip=%s retry_after=%d",
                 _safe_for_log(username), ip, remaining,
+            )
+            # 3.2.4: also store the event for the security dashboard
+            from .security_audit import record
+
+            record(
+                "LOGIN_BLOCKED", request=request, username=username or "",
+                severity="WARNING",
+                description=f"Attempt refused during lockout ({remaining}s remaining)",
+                log=False,
             )
             raise PermissionDenied("Too many failed login attempts.")
         return None

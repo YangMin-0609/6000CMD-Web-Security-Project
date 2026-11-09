@@ -1,0 +1,22 @@
+{% extends "helpdesk/public_base.html" %}{% load i18n %}
+{% block helpdesk_title %}{% trans "Too Many Login Attempts" %}{% endblock %}
+
+{% block helpdesk_body %}
+    <div class="container">
+      <div class="card card-login mx-auto mt-5">
+        <div class="card-header">{% trans "Login temporarily blocked" %}</div>
+        <div class="card-body">
+          <div class="alert alert-warning" role="alert">{{ message }}</div>
+          <p class="small">
+            {% trans "For your security, sign-in is paused after several failed attempts." %}
+          </p>
+          <ul class="small">
+            <li>{% trans "Check that Caps Lock is off and that you are using the correct username." %}</li>
+            <li>{% trans "Use a unique password for this helpdesk and never share it." %}</li>
+            <li>{% trans "If you did not make these attempts, tell your administrator: someone may be trying to guess your password." %}</li>
+          </ul>
+          <a class="btn btn-primary btn-block" href="{% url 'helpdesk:login' %}">{% trans "Back to login" %}</a>
+        </div>
+      </div>
+    </div>
+{% endblock %}

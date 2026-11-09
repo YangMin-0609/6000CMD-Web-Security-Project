@@ -68,6 +68,14 @@
             <span>{% trans "Reports" %}</span>
           </a>
         </li>
+        {% if user.is_staff %}
+        <li class="nav-item{% if 'security' in request.path %} active{% endif %}">
+          <a class="nav-link" href="{% url 'helpdesk:security_dashboard' %}">
+            <i class="fas fa-fw fa-shield-alt"></i>
+            <span>{% trans "Security Log" %}</span>
+          </a>
+        </li>
+        {% endif %}
         {% if helpdesk_settings.HELPDESK_KB_ENABLED %}
         <li class="nav-item{% if 'kb' in request.path %} active{% endif %}">
           <a class="nav-link" href="{% url 'helpdesk:kb_index' %}">

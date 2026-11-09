@@ -289,6 +289,20 @@ LOGGING = {
     },
 }
 
+
+# ---------------------------------------------------------------------------
+# 3.2.3 - 3.2.5: Audit logging, secure user admin and security dashboard
+# ---------------------------------------------------------------------------
+# Records security events (logins, lockouts, HTTP 403s, privilege and role
+# changes, admin actions, ticket access) for the dashboard at /security/.
+# Must come after AuthenticationMiddleware (it is appended at the end).
+MIDDLEWARE += ["helpdesk.security_audit.SecurityAuditMiddleware"]
+HELPDESK_SECURITY_AUDIT_ENABLED = True
+# Only superusers may change superuser/staff status, groups or permissions
+HELPDESK_SECURE_USER_ADMIN = True
+# Delete security events after 90 days: python manage.py purge_security_events
+HELPDESK_SECURITY_EVENT_RETENTION_DAYS = 90
+
 try:
     from .local_settings import *
 except ImportError:

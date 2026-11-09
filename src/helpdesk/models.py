@@ -2294,3 +2294,7 @@ class ChecklistTask(models.Model):
 
     def __str__(self):
         return self.description
+
+
+# 3.2.4 Audit logging: security events (defined in a separate module)
+from .security_models import SecurityEvent  # noqa: E402, F401

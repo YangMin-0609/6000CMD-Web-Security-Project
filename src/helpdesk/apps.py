@@ -15,3 +15,8 @@ class HelpdeskConfig(AppConfig):
 
         # SEC-03: count failed / successful logins for rate limiting
         connect_signals()
+
+        # 3.2.4: audit logging of security events
+        from .security_audit import connect_signals as connect_audit_signals
+
+        connect_audit_signals()
