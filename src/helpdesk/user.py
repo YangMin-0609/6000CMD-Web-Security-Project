@@ -21,14 +21,12 @@ class HelpdeskUser:
         """
         user = self.user
         all_queues = Queue.objects.all()
-        public_ids = [q.pk for q in Queue.objects.filter(allow_public_submission=True)]
         limit_queues_by_user = (
             helpdesk_settings.HELPDESK_ENABLE_PER_QUEUE_STAFF_PERMISSION
             and not user.is_superuser
         )
         if limit_queues_by_user:
             id_list = [q.pk for q in all_queues if user.has_perm(q.permission_name)]
-            id_list += public_ids
             return all_queues.filter(pk__in=id_list)
         else:
             return all_queues
@@ -80,6 +78,8 @@ class HelpdeskUser:
         """Check to see if the user has permission to access
         a ticket. If not then deny access."""
         user = self.user
+        if helpdesk_settings.HELPDESK_ENABLE_PER_QUEUE_STAFF_PERMISSION and user.is_staff:
+            return self.can_access_queue(ticket.queue)
         return bool(
             self.can_access_queue(ticket.queue)
             or self.has_full_access()
