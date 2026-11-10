@@ -2,6 +2,7 @@
 
 {% block helpdesk_body %}
 <h2>{% trans "View a Ticket" %}</h2>
+<p>{% trans "Use the private link sent with your ticket or enter its details below." %}</p>
 
 <form method='get' action='{% url 'helpdesk:public_view' %}'>
 
@@ -14,11 +15,14 @@
 
         <dt><label for='id_email'>{% trans "Your E-mail Address" %}</label></dt>
         <dd><input type='text' name='email' /></dd>
+
+        <dt><label for='id_key'>{% trans "Ticket Access Key" %}</label></dt>
+        <dd><input type='password' name='key' id='id_key' required /></dd>
     </dl>
 
     <input class="btn btn-primary" type='submit' value='{% trans "View Ticket" %}' />
 </fieldset>
-{% csrf_token %}</form>
+</form>
 
 
 {% endblock %}

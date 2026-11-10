@@ -12,11 +12,7 @@ from importlib import import_module
 from urllib.parse import quote
 
 from django.conf import settings
-from django.core.exceptions import (
-    ImproperlyConfigured,
-    ObjectDoesNotExist,
-    PermissionDenied,
-)
+from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.urls import reverse
@@ -187,11 +183,9 @@ class SearchForTicketView(TemplateView):
             and settings.HELPDESK_VIEW_A_TICKET_PUBLIC
         ):
             context = self.get_context_data(**kwargs)
-            return self.render_to_response(context)
-        else:
-            raise PermissionDenied(
-                "Public viewing of tickets without a secret key is forbidden."
-            )
+            status = 403 if kwargs.get("error_message") else 200
+            return self.render_to_response(context, status=status)
+        raise PermissionDenied("Public ticket lookup is unavailable.")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -216,35 +210,25 @@ class ViewTicket(TemplateView):
     def get(self, request, *args, **kwargs):
         ticket_req = request.GET.get("ticket", None)
         email = request.GET.get("email", None)
-        key = request.GET.get("key", "")
+        key = request.GET.get("key")
+        lookup_form = SearchForTicketView.as_view()
 
-        if not (ticket_req and email):
-            if ticket_req is None and email is None:
-                return SearchForTicketView.as_view()(request)
-            else:
-                return SearchForTicketView.as_view()(
-                    request, _("Missing ticket ID or e-mail address. Please try again.")
-                )
+        if ticket_req is None and email is None and key is None:
+            return lookup_form(request)
+
+        error_message = _(
+            "Unable to verify this ticket. Use the private link sent with your ticket."
+        )
+        if not (ticket_req and email and key):
+            return lookup_form(request, error_message=error_message)
 
         try:
             _queue, ticket_id = Ticket.queue_and_id_from_query(ticket_req)
-            if (
-                request.user.is_authenticated
-                and request.user.email == email
-                or (
-                    hasattr(settings, "HELPDESK_VIEW_A_TICKET_PUBLIC")
-                    and settings.HELPDESK_VIEW_A_TICKET_PUBLIC
-                )
-            ):
-                ticket = Ticket.objects.get(id=ticket_id, submitter_email__iexact=email)
-            else:
-                ticket = Ticket.objects.get(
-                    id=ticket_id, submitter_email__iexact=email, secret_key__iexact=key
-                )
-        except (ObjectDoesNotExist, ValueError):
-            return SearchForTicketView.as_view()(
-                request, _("Invalid ticket ID or e-mail address. Please try again.")
+            ticket = Ticket.objects.get(
+                id=ticket_id, submitter_email__iexact=email, secret_key__iexact=key
             )
+        except (Ticket.DoesNotExist, ValueError):
+            return lookup_form(request, error_message=error_message)
 
         if "close" in request.GET and ticket.status == Ticket.RESOLVED_STATUS:
             from helpdesk.update_ticket import update_ticket
