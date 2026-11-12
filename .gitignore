@@ -285,3 +285,6 @@ demodesk/db.sqlite3
 
 # Local helpdesk uploads are test data, not source code.
 demodesk/media/helpdesk/attachments/
+
+# Private uploaded attachments
+**/private_helpdesk_attachments/

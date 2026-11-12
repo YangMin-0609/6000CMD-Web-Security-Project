@@ -15,6 +15,7 @@ from rest_framework.routers import DefaultRouter
 
 from helpdesk import settings as helpdesk_settings
 from helpdesk.decorators import helpdesk_staff_member_required, protect_view
+from helpdesk.views.attachments import attachment_download
 from helpdesk.views import feeds, login, public, staff
 from helpdesk.views.api import (
     CreateUserView,
@@ -51,7 +52,13 @@ class DirectTemplateView(TemplateView):
 app_name = "helpdesk"
 
 base64_pattern = r"(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"
-urlpatterns = []
+urlpatterns = [
+    path(
+        "tickets/<int:ticket_id>/attachments/<int:attachment_id>/download/",
+        attachment_download,
+        name="attachment_download",
+    ),
+]
 
 if helpdesk_settings.HELPDESK_UI_ENABLED:
     urlpatterns += [

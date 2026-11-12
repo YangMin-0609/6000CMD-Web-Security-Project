@@ -100,10 +100,26 @@ class DatatablesTicketSerializer(serializers.ModelSerializer):
         return obj.last_followup
 
 
+class PrivateAttachmentFileField(serializers.FileField):
+    def to_representation(self, value):
+        url = value.instance.get_download_url()
+        request = self.context.get("request")
+        return request.build_absolute_uri(url) if request else url
+
+
 class FollowUpAttachmentSerializer(serializers.ModelSerializer):
+    file = PrivateAttachmentFileField()
+
     class Meta:
         model = FollowUpAttachment
-        fields = ("id", "followup", "file", "filename", "mime_type", "size")
+        fields = (
+            "id",
+            "followup",
+            "file",
+            "filename",
+            "mime_type",
+            "size",
+        )
 
 
 class FollowUpSerializer(serializers.ModelSerializer):
