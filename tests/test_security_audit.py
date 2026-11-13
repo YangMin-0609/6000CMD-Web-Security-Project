@@ -287,7 +287,9 @@ class SecureUserAdminTests(TestCase):
         """End-to-end: tampered POST with is_superuser=on through the real admin form."""
         self.client.force_login(self.manager)
         url = reverse("admin:auth_user_change", args=[self.manager.pk])
-        joined = timezone.localtime(self.manager.date_joined)
+        joined = self.manager.date_joined
+        if timezone.is_aware(joined):
+            joined = timezone.localtime(joined)
         self.client.post(
             url,
             {
