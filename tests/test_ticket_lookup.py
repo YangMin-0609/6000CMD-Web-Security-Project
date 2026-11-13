@@ -26,10 +26,40 @@ class TestTicketLookupPublicEnabled(TestCase):
 
     def test_ticket_by_link(self):
         """Can a ticket be looked up by its link from (eg) an email"""
-        # Instead of using the ticket_for_url link,
-        # we will exercise 'reverse' to lookup/build the URL
-        # from the ticket info we have
-        # http://example.com/helpdesk/view/?ticket=q1-1&email=None
+        self.ticket.submitter_email = "test+support@domain.com"
+        self.ticket.save()
+        response = self.client.get(self.ticket.ticket_url)
+        self.assertContains(response, self.ticket.title)
+        self.assertTemplateUsed(response, "helpdesk/public_view_ticket.html")
+
+    def test_ticket_lookup_rejects_missing_or_invalid_credentials(self):
+        other_ticket = Ticket.objects.create(
+            title="Another ticket",
+            queue=self.ticket.queue,
+            submitter_email=self.ticket.submitter_email,
+        )
+        url = reverse("helpdesk:public_view")
+        params = {
+            "ticket": self.ticket.ticket_for_url,
+            "email": self.ticket.submitter_email,
+        }
+        for credentials in (
+            {},
+            {"key": ""},
+            {"key": "invalid-key"},
+            {"key": other_ticket.secret_key},
+            {"key": self.ticket.secret_key, "email": "wrong@example.com"},
+        ):
+            with self.subTest(fields=tuple(credentials)):
+                response = self.client.get(url, params | credentials)
+                self.assertNotContains(response, self.ticket.title, status_code=403)
+                self.assertTemplateNotUsed(response, "helpdesk/public_view_ticket.html")
+
+    def test_matching_account_email_alone_does_not_grant_public_access(self):
+        user = User.objects.create(
+            username="matching", email=self.ticket.submitter_email
+        )
+        self.client.force_login(user)
         response = self.client.get(
             reverse("helpdesk:public_view"),
             {
@@ -37,7 +67,7 @@ class TestTicketLookupPublicEnabled(TestCase):
                 "email": self.ticket.submitter_email,
             },
         )
-        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, self.ticket.title, status_code=403)
 
     def test_ticket_with_changed_queue(self):
         # Make a ticket (already done in setup() )
@@ -49,6 +79,7 @@ class TestTicketLookupPublicEnabled(TestCase):
         params = {
             "ticket": self.ticket.ticket_for_url,
             "email": self.ticket.submitter_email,
+            "key": self.ticket.secret_key,
         }
         # Pickup the ticket created in setup() and change its queue
         self.ticket.queue = q2
@@ -56,7 +87,8 @@ class TestTicketLookupPublicEnabled(TestCase):
 
         # confirm that we can still get to a url which was emailed earlier
         response = self.client.get(url, params)
-        self.assertNotContains(response, "Invalid ticket ID")
+        self.assertContains(response, self.ticket.title)
+        self.assertTemplateUsed(response, "helpdesk/public_view_ticket.html")
 
     def test_add_email_to_ticketcc_if_not_in(self):
         staff_email = "staff@mail.com"

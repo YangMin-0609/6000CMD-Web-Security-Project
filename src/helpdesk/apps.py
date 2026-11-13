@@ -11,3 +11,12 @@ class HelpdeskConfig(AppConfig):
 
     def ready(self):
         from . import webhooks  # noqa: F401
+        from .login_rate_limit import connect_signals
+
+        # SEC-03: count failed / successful logins for rate limiting
+        connect_signals()
+
+        # 3.2.4: audit logging of security events
+        from .security_audit import connect_signals as connect_audit_signals
+
+        connect_audit_signals()

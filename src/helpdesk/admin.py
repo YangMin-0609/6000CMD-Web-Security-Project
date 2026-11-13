@@ -159,3 +159,9 @@ class ChecklistAdmin(admin.ModelAdmin):
 
 admin.site.register(PreSetReply)
 admin.site.register(EscalationExclusion)
+
+
+# 3.2.3 / 3.2.4: privilege-escalation-safe user admin and read-only audit log
+from helpdesk import security_admin
+
+security_admin.register()

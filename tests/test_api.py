@@ -1,5 +1,6 @@
 import base64
 from _datetime import timedelta
+from pathlib import Path
 
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -350,7 +351,11 @@ class TicketTest(APITestCase):
         staff_user = User.objects.create_user(username="test", is_staff=True)
         self.client.force_authenticate(staff_user)
         test_file = SimpleUploadedFile(
-            "file.jpg", b"file_content", content_type="image/jpg"
+            "file.jpg",
+            (
+                Path(__file__).resolve().parent.parent / "test_files" / "genuine.jpg"
+            ).read_bytes(),
+            content_type="image/jpeg",
         )
         response = self.client.post(
             "/api/tickets/",
@@ -384,7 +389,11 @@ class TicketTest(APITestCase):
         self.client.force_authenticate(staff_user)
         ticket = Ticket.objects.create(queue=self.queue, title="Test")
         test_file_1 = SimpleUploadedFile(
-            "file.jpg", b"file_content", content_type="image/jpg"
+            "file.jpg",
+            (
+                Path(__file__).resolve().parent.parent / "test_files" / "genuine.jpg"
+            ).read_bytes(),
+            content_type="image/jpeg",
         )
         test_file_2 = SimpleUploadedFile(
             "doc.pdf", b"Doc content", content_type="application/pdf"
@@ -414,7 +423,7 @@ class TicketTest(APITestCase):
             created_followup.followupattachment_set.last().filename, "file.jpg"
         )
         self.assertEqual(
-            created_followup.followupattachment_set.last().mime_type, "image/jpg"
+            created_followup.followupattachment_set.last().mime_type, "image/jpeg"
         )
 
 

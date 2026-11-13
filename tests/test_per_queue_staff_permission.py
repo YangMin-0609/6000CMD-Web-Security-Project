@@ -331,6 +331,56 @@ class PerQueuePermissionSecurityTestCase(TestCase):
     def _login_user_1(self):
         self.client.login(username="user_1", password="pass")
 
+    def test_staff_attachment_access_uses_ticket_queue_permissions(self):
+        self._login_user_1()
+        allowed = FollowUpAttachment.objects.create(
+            followup=FollowUp.objects.create(
+                ticket=self.ticket_1, title="Staff note", public=False
+            ),
+            file=SimpleUploadedFile(
+                "allowed.txt", b"allowed", content_type="text/plain"
+            ),
+        )
+        response = self.client.get(allowed.get_download_url())
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(b"".join(response.streaming_content), b"allowed")
+        self.assertEqual(
+            self.client.get(self.attachment_2.get_download_url()).status_code, 404
+        )
+
+    def test_public_submission_does_not_grant_staff_access(self):
+        """Public ticket submission must not grant staff access to that queue."""
+        self.queue_2.allow_public_submission = True
+        self.queue_2.save(update_fields=["allow_public_submission"])
+
+        huser = HelpdeskUser(self.user_1)
+        self.assertEqual(
+            list(huser.get_queues().values_list("pk", flat=True)),
+            [self.queue_1.pk],
+        )
+
+        self._login_user_1()
+        list_response = self.client.get(reverse("helpdesk:list"))
+        self.assertNotIn(self.queue_2, list_response.context["queue_choices"])
+
+        detail_response = self.client.get(
+            reverse("helpdesk:view", kwargs={"ticket_id": self.ticket_2.id})
+        )
+        self.assertEqual(detail_response.status_code, 403)
+
+    def test_assignment_does_not_bypass_staff_queue_permission(self):
+        """Assigned staff still need permission for the ticket's queue."""
+        self.ticket_2.assigned_to = self.user_1
+        self.ticket_2.save(update_fields=["assigned_to"])
+
+        self.assertFalse(HelpdeskUser(self.user_1).can_access_ticket(self.ticket_2))
+
+        self._login_user_1()
+        response = self.client.get(
+            reverse("helpdesk:view", kwargs={"ticket_id": self.ticket_2.id})
+        )
+        self.assertEqual(response.status_code, 403)
+
     def test_attachment_del_idor_blocked(self):
         """user_1 cannot delete an attachment from queue_2 by pairing their
         accessible ticket_1 id with queue_2's attachment id."""

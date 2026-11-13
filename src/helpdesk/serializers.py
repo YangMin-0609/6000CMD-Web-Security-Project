@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.contrib.humanize.templatetags import humanize
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -8,6 +9,7 @@ from .lib import format_time_spent
 from .models import CustomField, FollowUp, FollowUpAttachment, Ticket
 from .update_ticket import update_ticket
 from .user import HelpdeskUser
+from .validators import validate_file_extension
 
 
 class DatatablesTicketSerializer(serializers.ModelSerializer):
@@ -100,10 +102,26 @@ class DatatablesTicketSerializer(serializers.ModelSerializer):
         return obj.last_followup
 
 
+class PrivateAttachmentFileField(serializers.FileField):
+    def to_representation(self, value):
+        url = value.instance.get_download_url()
+        request = self.context.get("request")
+        return request.build_absolute_uri(url) if request else url
+
+
 class FollowUpAttachmentSerializer(serializers.ModelSerializer):
+    file = PrivateAttachmentFileField()
+
     class Meta:
         model = FollowUpAttachment
-        fields = ("id", "followup", "file", "filename", "mime_type", "size")
+        fields = (
+            "id",
+            "followup",
+            "file",
+            "filename",
+            "mime_type",
+            "size",
+        )
 
 
 class FollowUpSerializer(serializers.ModelSerializer):
@@ -129,6 +147,14 @@ class FollowUpSerializer(serializers.ModelSerializer):
             "date",
             "message_id",
         )
+
+    def validate_attachments(self, files):
+        try:
+            for file in files:
+                validate_file_extension(file)
+        except DjangoValidationError as error:
+            raise serializers.ValidationError(error.messages) from error
+        return files
 
     def create(self, validated_data):
         if validated_data["user"]:

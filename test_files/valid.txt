@@ -1,0 +1,1 @@
+Valid text attachment for SEC-06 after-fix testing.

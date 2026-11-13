@@ -1,3 +1,5 @@
+from urllib.parse import urlencode
+
 from django.test import TestCase
 from django.test.client import Client
 from django.urls import reverse
@@ -57,35 +59,29 @@ class PublicActionsTestCase(TestCase):
         self.assertTemplateUsed(response, "helpdesk/public_view_ticket.html")
 
     def test_public_close(self):
-        old_status = self.ticket.status
-        old_resolution = self.ticket.resolution
-        resolution_text = "Resolved by test script"
+        self.ticket.status = Ticket.RESOLVED_STATUS
+        self.ticket.resolution = "Resolved by test script"
+        self.ticket.save()
+        url = reverse("helpdesk:public_view")
+        credentials = {
+            "ticket": self.ticket.ticket_for_url,
+            "email": self.ticket.submitter_email,
+            "key": self.ticket.secret_key,
+        }
+        url = f"{url}?{urlencode(credentials)}"
+        client = Client(enforce_csrf_checks=True)
 
-        ticket = Ticket.objects.get(id=self.ticket.id)
+        response = client.get(url)
+        self.assertContains(response, "Accept and Close")
+        csrf = client.cookies["csrftoken"].value
+        self.assertEqual(client.post(url, {"action": "close"}).status_code, 403)
+        self.ticket.refresh_from_db()
+        self.assertEqual(self.ticket.status, Ticket.RESOLVED_STATUS)
+        self.assertFalse(self.ticket.followup_set.exists())
 
-        ticket.status = Ticket.RESOLVED_STATUS
-        ticket.resolution = resolution_text
-        ticket.save()
-
-        current_followups = ticket.followup_set.all().count()
-
-        response = self.client.get(
-            "{}?ticket={}&email={}&close&key={}".format(
-                reverse("helpdesk:public_view"),
-                ticket.ticket_for_url,
-                "test.submitter@example.com",
-                ticket.secret_key,
-            )
-        )
-
-        ticket = Ticket.objects.get(id=self.ticket.id)
-
-        self.assertEqual(response.status_code, 302)
-        self.assertTemplateNotUsed(response, "helpdesk/public_view_form.html")
-        self.assertEqual(ticket.status, Ticket.CLOSED_STATUS)
-        self.assertEqual(ticket.resolution, resolution_text)
-        self.assertEqual(current_followups + 1, ticket.followup_set.all().count())
-
-        ticket.resolution = old_resolution
-        ticket.status = old_status
-        ticket.save()
+        response = client.post(url, {"action": "close"}, HTTP_X_CSRFTOKEN=csrf)
+        self.assertRedirects(response, url, fetch_redirect_response=False)
+        self.ticket.refresh_from_db()
+        self.assertEqual(self.ticket.status, Ticket.CLOSED_STATUS)
+        self.assertEqual(self.ticket.followup_set.count(), 1)
+        self.assertContains(client.get(response["Location"]), self.ticket.title)
