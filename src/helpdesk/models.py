@@ -13,6 +13,7 @@ import os
 import re
 import uuid
 from io import StringIO
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -811,14 +812,14 @@ class Ticket(models.Model):
             protocol = "https"
         else:
             protocol = "http"
-        return "{}://{}{}?ticket={}&email={}&key={}".format(
-            protocol,
-            site.domain,
-            reverse("helpdesk:public_view"),
-            self.ticket_for_url,
-            self.submitter_email,
-            self.secret_key,
+        query = urlencode(
+            {
+                "ticket": self.ticket_for_url,
+                "email": self.submitter_email,
+                "key": self.secret_key,
+            }
         )
+        return f"{protocol}://{site.domain}{reverse('helpdesk:public_view')}?{query}"
 
     ticket_url = property(_get_ticket_url)
 
