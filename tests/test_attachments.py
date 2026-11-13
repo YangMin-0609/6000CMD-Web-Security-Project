@@ -64,12 +64,12 @@ class AttachmentIntegrationTests(TestCase):
         att = models.FollowUpAttachment.objects.get(
             followup__ticket=response.context["ticket"]
         )
-        with open(os.path.join(MEDIA_DIR, att.file.name)) as file_on_disk:
+        with open(att.file.path) as file_on_disk:
             disk_content = file_on_disk.read()
         self.assertEqual(disk_content, "attached file content")
 
     def test_create_pub_ticket_with_attachment_utf8(self):
-        test_file = SimpleUploadedFile("ß°äöü.txt", "โจ".encode(), "text/utf-8")
+        test_file = SimpleUploadedFile("ÃŸÂ°Ã¤Ã¶Ã¼.txt", "à¹‚à¸ˆ".encode(), "text/utf-8")
         post_data = self.ticket_data.copy()
         post_data.update(
             {
@@ -87,10 +87,10 @@ class AttachmentIntegrationTests(TestCase):
             followup__ticket=response.context["ticket"]
         )
         with open(
-            os.path.join(MEDIA_DIR, att.file.name), encoding="utf-8"
+            att.file.path, encoding="utf-8"
         ) as file_on_disk:
             disk_content = smart_str(file_on_disk.read(), "utf-8")
-        self.assertEqual(disk_content, "โจ")
+        self.assertEqual(disk_content, "à¹‚à¸ˆ")
 
 
 @override_settings(MEDIA_ROOT=MEDIA_DIR)
@@ -138,7 +138,7 @@ class AttachmentIntegrationStaffTests(TestCase):
         )
         # Ensure attachment is available with correct content
         att = models.FollowUpAttachment.objects.get(followup__ticket=self.ticket)
-        with open(os.path.join(MEDIA_DIR, att.file.name)) as file_on_disk:
+        with open(att.file.path) as file_on_disk:
             disk_content = file_on_disk.read()
         self.assertEqual(disk_content, file_content)
 
@@ -183,8 +183,8 @@ class AttachmentIntegrationStaffTests(TestCase):
 class AttachmentUnitTests(TestCase):
     def setUp(self):
         self.file_attrs = {
-            "filename": "°ßäöü.txt",
-            "content": "โจ".encode(),
+            "filename": "Â°ÃŸÃ¤Ã¶Ã¼.txt",
+            "content": "à¹‚à¸ˆ".encode(),
             "content-type": "text/utf8",
         }
         self.test_file = SimpleUploadedFile.from_dict(self.file_attrs)

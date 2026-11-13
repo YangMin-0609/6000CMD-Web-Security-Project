@@ -24,6 +24,8 @@ from helpdesk.views.api import (
     UserTicketViewSet,
 )
 
+from helpdesk.views.attachments import attachment_download
+
 if helpdesk_settings.HELPDESK_KB_ENABLED:
     from helpdesk.views import kb
 
@@ -51,7 +53,13 @@ class DirectTemplateView(TemplateView):
 app_name = "helpdesk"
 
 base64_pattern = r"(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"
-urlpatterns = []
+urlpatterns = [
+    path(
+        "tickets/<int:ticket_id>/attachments/<int:attachment_id>/download/",
+        attachment_download,
+        name="attachment_download",
+    ),
+]
 
 if helpdesk_settings.HELPDESK_UI_ENABLED:
     urlpatterns += [

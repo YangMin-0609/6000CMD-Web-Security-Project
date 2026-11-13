@@ -231,6 +231,10 @@ STATIC_ROOT = os.path.join(BASE_DIR, "static")
 # with tickets.
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+HELPDESK_PRIVATE_ATTACHMENT_ROOT = os.path.join(
+    BASE_DIR,
+    "private_helpdesk_attachments",
+)
 
 # Fixtures
 # https://docs.djangoproject.com/en/1.11/ref/settings/#std:setting-FIXTURE_DIRS

@@ -13,12 +13,14 @@ from urllib.parse import quote
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied
+from django.db import transaction
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.urls import reverse
+from django.utils.decorators import method_decorator
 from django.utils.translation import gettext as _
 from django.views.decorators.clickjacking import xframe_options_exempt
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt, csrf_protect
 from django.views.generic.base import TemplateView
 from django.views.generic.edit import FormView
 
@@ -204,8 +206,49 @@ class SearchForTicketView(TemplateView):
         return context
 
 
+@method_decorator(csrf_protect, name="dispatch")
 class ViewTicket(TemplateView):
     template_name = "helpdesk/public_view_ticket.html"
+
+    @transaction.atomic
+    def post(self, request, *args, **kwargs):
+        from helpdesk.update_ticket import update_ticket
+
+        # This handler accepts only the explicit close action.
+        if request.POST.get("action") != "close":
+            raise PermissionDenied()
+
+        ticket_req = request.GET.get("ticket")
+        email = request.GET.get("email")
+        key = request.GET.get("key", "")
+
+        if not ticket_req or not email or not key:
+            raise PermissionDenied()
+
+        # Verify that all credentials belong to the same ticket.
+        try:
+            _queue, ticket_id = Ticket.queue_and_id_from_query(ticket_req)
+            ticket = Ticket.objects.select_for_update().get(
+                id=ticket_id,
+                submitter_email__iexact=email,
+                secret_key__iexact=key,
+            )
+        except (Ticket.DoesNotExist, ValueError):
+            raise PermissionDenied() from None
+
+        # Only resolved tickets without unresolved dependencies can close.
+        if ticket.status != Ticket.RESOLVED_STATUS or not ticket.can_be_resolved:
+            raise PermissionDenied()
+
+        update_ticket(
+            request.user,
+            ticket,
+            public=True,
+            comment=_("Submitter accepted resolution and closed ticket"),
+            new_status=Ticket.CLOSED_STATUS,
+        )
+
+        return HttpResponseRedirect(request.get_full_path())
 
     def get(self, request, *args, **kwargs):
         ticket_req = request.GET.get("ticket", None)
@@ -230,18 +273,6 @@ class ViewTicket(TemplateView):
         except (Ticket.DoesNotExist, ValueError):
             return lookup_form(request, error_message=error_message)
 
-        if "close" in request.GET and ticket.status == Ticket.RESOLVED_STATUS:
-            from helpdesk.update_ticket import update_ticket
-
-            update_ticket(
-                request.user,
-                ticket,
-                public=True,
-                comment=_("Submitter accepted resolution and closed ticket"),
-                new_status=Ticket.CLOSED_STATUS,
-            )
-            return HttpResponseRedirect(ticket.ticket_url)
-
         # Prepare context for rendering
         context = {
             "key": key,
@@ -256,8 +287,6 @@ class ViewTicket(TemplateView):
         redirect_url = ""
         if is_helpdesk_staff(self.request.user):
             redirect_url = reverse("helpdesk:view", args=[ticket_id])
-            if "close" in self.request.GET:
-                redirect_url += "?close"
         elif helpdesk_settings.HELPDESK_NAVIGATION_ENABLED:
             redirect_url = reverse("helpdesk:view", args=[ticket_id])
         return redirect_url

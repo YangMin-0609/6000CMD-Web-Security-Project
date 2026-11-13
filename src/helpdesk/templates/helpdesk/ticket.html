@@ -70,7 +70,14 @@
         </button>
       {% endif %}
     </div>
-    <div class="tab-content" id="myTabContent">
+    {% translate 'If you want to update state of checklist tasks, please do a Follow-Up response and click on "Update checklists"' as checklist_warning %}
+    {% translate "Newest first" as newest_first_label %}
+    {% translate "Oldest first" as oldest_first_label %}
+    <div class="tab-content"
+         id="myTabContent"
+         data-checklist-warning="{{ checklist_warning|force_escape }}"
+         data-newest-first-label="{{ newest_first_label|force_escape }}"
+         data-oldest-first-label="{{ oldest_first_label|force_escape }}">
       {# Followup Pane #}
       {% if followups %}
         {% load ticket_to_link %}
@@ -152,7 +159,7 @@
                   <ul>
                     {% for attachment in followup.followupattachment_set.all %}
                       <li>
-                        <a href="{{ attachment.file.url }}" target="_blank">{{ attachment.filename }}</a>
+                        <a href="{{ attachment.get_download_url }}" target="_blank">{{ attachment.filename }}</a>
                         <small class="text-secondary">({{ attachment.mime_type }}, {{ attachment.size|filesizeformat }})</small>
                         {% if followup.user and request.user == followup.user %}
                           <a href="{% url 'helpdesk:attachment_del' ticket.id attachment.id %}"
@@ -443,7 +450,7 @@ $( function() {
       })
 
       $('.disabledTask').on('click', () => {
-          alert('{% trans 'If you want to update state of checklist tasks, please do a Follow-Up response and click on "Update checklists"' %}')
+          alert($('#myTabContent').attr('data-checklist-warning'))
       })
 
       document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(el) {
@@ -459,12 +466,14 @@ $( function() {
           });
 
           var newOrder = $button.data('order') === 'newest_first' ? 'oldest_first' : 'newest_first';
-          var label = newOrder === 'newest_first' ? '{% translate "Newest first" %}' : '{% translate "Oldest first" %}';
+          var label = newOrder === 'newest_first'
+              ? $('#myTabContent').attr('data-newest-first-label')
+              : $('#myTabContent').attr('data-oldest-first-label');
           $button.data('order', newOrder);
           $('#followup-sort-toggle-label').text(label);
       });
 
-      {% if helpdesk_settings.HELPDESK_ENABLE_ATTACHMENTS %}
+      if ($('.add_file_fields_wrap').length) {
       // lists for file input change events, then updates the associated text label
       // with the file name selected
       $('.add_file_fields_wrap').on('fileselect', ':file', function(event, numFiles, label, browseButtonNum) {
@@ -479,10 +488,10 @@ $( function() {
           e.preventDefault();
           $(wrapper).append("<div class='mb-3'><input class='form-control' type='file' name='attachment' id='file" + x + "' multiple/></div>"); //add input box
       });
-      {% endif %}
+      }
   });
 
-  {% if helpdesk_settings.HELPDESK_ENABLE_ATTACHMENTS %}
+  if ($('.add_file_fields_wrap').length) {
   // this function listens for changes on any file input, and
   // emits the appropriate event to update the input's text.
   // Needed to have properly styled file input buttons! (this really shouldn't be this hard...)
@@ -493,6 +502,6 @@ $( function() {
           label = input.val().replace(/\\/g, '/').replace(/.*\//, '');
       input.trigger('fileselect', [numFiles, label, inputWidgetNum]);
   });
-  {% endif %}
+  }
   </script>
 {% endblock %}

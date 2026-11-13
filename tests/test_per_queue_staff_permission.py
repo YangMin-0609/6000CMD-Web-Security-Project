@@ -331,6 +331,19 @@ class PerQueuePermissionSecurityTestCase(TestCase):
     def _login_user_1(self):
         self.client.login(username="user_1", password="pass")
 
+    def test_staff_attachment_access_uses_ticket_queue_permissions(self):
+        self._login_user_1()
+        allowed = FollowUpAttachment.objects.create(
+            followup=FollowUp.objects.create(
+                ticket=self.ticket_1, title="Staff note", public=False
+            ),
+            file=SimpleUploadedFile("allowed.txt", b"allowed", content_type="text/plain"),
+        )
+        response = self.client.get(allowed.get_download_url())
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(b"".join(response.streaming_content), b"allowed")
+        self.assertEqual(self.client.get(self.attachment_2.get_download_url()).status_code, 404)
+
     def test_public_submission_does_not_grant_staff_access(self):
         """Public ticket submission must not grant staff access to that queue."""
         self.queue_2.allow_public_submission = True

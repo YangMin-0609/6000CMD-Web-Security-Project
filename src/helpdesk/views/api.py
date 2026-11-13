@@ -37,7 +37,7 @@ class UserTicketViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         tickets = Ticket.objects.filter(
             submitter_email=self.request.user.email
-        ).order_by("-created")
+        ).order_by("-created", "-pk")
         for ticket in tickets:
             ticket.set_custom_field_values()
         return tickets

@@ -21,6 +21,7 @@ from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext
@@ -34,6 +35,7 @@ from helpdesk import settings as helpdesk_settings
 from .lib import convert_value, daily_time_spent_calculation, format_time_spent
 from .templated_email import send_templated_mail
 from .validators import validate_file_extension
+from .private_attachment import private_attachment_storage
 
 User = get_user_model()
 
@@ -1297,20 +1299,33 @@ class Attachment(models.Model):
 
 
 class FollowUpAttachment(Attachment):
+    file = models.FileField(
+        _("File"),
+        upload_to=attachment_path,
+        max_length=1000,
+        validators=[validate_file_extension],
+        storage=private_attachment_storage,
+    )
+
     followup = models.ForeignKey(
         FollowUp,
         on_delete=models.CASCADE,
         verbose_name=_("Follow-up"),
     )
 
+    def get_download_url(self):
+        return reverse(
+            "helpdesk:attachment_download",
+            args=[self.followup.ticket_id, self.pk],
+        )
+
     def attachment_path(self, filename):
-        path = f"helpdesk/attachments/{self.followup.ticket.ticket_for_url}-{self.followup.ticket.secret_key}/{self.followup.id}"
-        att_path = os.path.join(settings.MEDIA_ROOT, path)
-        if (
-            settings.STORAGES == "django.core.files.storage.FileSystemStorage"
-            and not os.path.exists(att_path)
-        ):
-            os.makedirs(att_path, helpdesk_settings.HELPDESK_ATTACHMENT_DIR_PERMS)
+        path = (
+            f"helpdesk/attachments/"
+            f"{self.followup.ticket.ticket_for_url}-"
+            f"{self.followup.ticket.secret_key}/"
+            f"{self.followup.id}"
+        )
         return os.path.join(path, filename)
 
 

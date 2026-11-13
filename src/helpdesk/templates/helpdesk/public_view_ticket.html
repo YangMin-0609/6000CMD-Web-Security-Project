@@ -60,12 +60,33 @@
     <td colspan='2'>{{ ticket.description|force_escape|urlizetrunc:50|linebreaksbr }}</td>
 </tr>
 
-{% if ticket.resolution %}<tr>
-    <th colspan='2'>{% trans "Resolution" %}{% if ticket.get_status_display == "Resolved" %} <a href='{{ ticket.ticket_url }}&close'><button type="button" class="btn btn-primary btn-xs">{% trans "Accept and Close" %}</button></a>{% endif %}</th>
+{% if ticket.resolution %}
+<tr>
+    <th colspan="2">
+        {% trans "Resolution" %}
+
+        {% if ticket.get_status_display == "Resolved" %}
+        <form method="post"
+              action="?ticket={{ ticket.ticket_for_url|urlencode }}&amp;email={{ mail|urlencode }}&amp;key={{ key|urlencode }}"
+              style="display: inline;">
+            {% csrf_token %}
+
+            <button type="submit"
+                    name="action"
+                    value="close"
+                    class="btn btn-primary btn-xs">
+                {% trans "Accept and Close" %}
+            </button>
+        </form>
+        {% endif %}
+    </th>
 </tr>
 <tr>
-    <td colspan='2'>{{ ticket.resolution|urlizetrunc:50|linebreaksbr }}</td>
-</tr>{% endif %}
+    <td colspan="2">
+        {{ ticket.resolution|urlizetrunc:50|linebreaksbr }}
+    </td>
+</tr>
+{% endif %}
 </tbody>
 </table>
 
@@ -84,7 +105,14 @@
 
     {% if helpdesk_settings.HELPDESK_ENABLE_ATTACHMENTS %}
     {% for attachment in followup.followupattachment_set.all %}{% if forloop.first %}<div class='attachments'><ul>{% endif %}
-	    <li><a href='{{ attachment.file.url }}'>{{ attachment.filename }}</a> ({{ attachment.mime_type }}, {{ attachment.size|filesizeformat }})</li>
+	    <li>
+            <a href="{{ attachment.get_download_url }}?key={{ key|urlencode }}"
+                target="_blank"
+                rel="noopener noreferrer">
+                {{ attachment.filename }}
+            </a>
+            ({{ attachment.mime_type }}, {{ attachment.size|filesizeformat }})
+        </li>
 	    {% if forloop.last %}</ul></div>{% endif %}
     {% endfor %}
     {% endif %}
