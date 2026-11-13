@@ -11,11 +11,14 @@ Two things keep that shut, and both are tested here:
 """
 
 import logging
+from io import BytesIO
+from unittest import mock
 
 from django.core.exceptions import ValidationError
-from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.files.uploadedfile import SimpleUploadedFile, TemporaryUploadedFile
 from django.test import TestCase
 from django.urls import reverse
+from PIL import Image
 
 from helpdesk import settings as helpdesk_settings
 from helpdesk.email import HTML_EMAIL_ATTACHMENT_FILENAME, extract_email_metadata
@@ -24,6 +27,12 @@ from helpdesk.validators import validate_file_extension
 
 PAYLOAD = "<script>alert(document.cookie)</script>"
 logger = logging.getLogger("helpdesk")
+
+
+def image_upload(name, image_format):
+    image_data = BytesIO()
+    Image.new("RGB", (1, 1), color="red").save(image_data, format=image_format)
+    return SimpleUploadedFile(name, image_data.getvalue())
 
 
 def build_email(sender, recipient, subject, html_body, attachment=None):
@@ -59,9 +68,59 @@ class ExtensionAllowlistTestCase(TestCase):
         self.assertNotIn(".html", allowed)
 
     def test_ordinary_extensions_still_allowed(self):
-        for name in ("notes.txt", "scan.pdf", "photo.jpg", "report.docx"):
+        for name in (
+            "notes.txt", "scan.pdf", "report.docx", "manual.odt",
+            "message.eml", "signature.asc",
+        ):
             with self.subTest(name=name):
                 validate_file_extension(SimpleUploadedFile(name, b"x"))
+
+    def test_valid_png_and_jpeg_content_is_accepted_and_file_position_restored(self):
+        for name, image_format in (
+            ("photo.png", "PNG"),
+            ("photo.jpg", "JPEG"),
+        ):
+            with self.subTest(name=name):
+                uploaded = image_upload(name, image_format)
+                uploaded.seek(4)
+                validate_file_extension(uploaded)
+                self.assertEqual(uploaded.tell(), 4)
+
+    def test_jpeg_extension_is_content_checked_when_enabled(self):
+        allowed_extensions = list(helpdesk_settings.HELPDESK_VALID_EXTENSIONS)
+        if ".jpeg" not in allowed_extensions:
+            allowed_extensions.append(".jpeg")
+        uploaded = image_upload("photo.jpeg", "JPEG")
+        with mock.patch.object(
+            helpdesk_settings, "HELPDESK_VALID_EXTENSIONS", allowed_extensions
+        ):
+            validate_file_extension(uploaded)
+
+    def test_temporary_upload_file_position_is_restored(self):
+        image_data = BytesIO()
+        Image.new("RGB", (1, 1), color="blue").save(image_data, format="PNG")
+        content = image_data.getvalue()
+        uploaded = TemporaryUploadedFile(
+            "disk.png", "image/png", len(content), "utf-8"
+        )
+        try:
+            uploaded.write(content)
+            uploaded.seek(3)
+            validate_file_extension(uploaded)
+            self.assertEqual(uploaded.tell(), 3)
+        finally:
+            uploaded.close()
+
+    def test_fake_or_mismatched_image_is_rejected_and_file_position_restored(self):
+        fake = SimpleUploadedFile("fake.png", b"plain text renamed as an image")
+        mismatch = image_upload("wrong.jpg", "PNG")
+
+        for uploaded in (fake, mismatch):
+            with self.subTest(name=uploaded.name):
+                uploaded.seek(2)
+                with self.assertRaises(ValidationError):
+                    validate_file_extension(uploaded)
+                self.assertEqual(uploaded.tell(), 2)
 
 
 class PublicFormAttachmentTestCase(TestCase):
