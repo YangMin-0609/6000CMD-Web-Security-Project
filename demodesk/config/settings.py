@@ -114,6 +114,9 @@ HELPDESK_PUBLIC_ENABLED = True
 HELPDESK_VIEW_A_TICKET_PUBLIC = True
 HELPDESK_SUBMIT_A_TICKET_PUBLIC = True
 
+# Staff may access only queues granted through Django permissions.
+HELPDESK_ENABLE_PER_QUEUE_STAFF_PERMISSION = True
+
 # Should the Knowledgebase be enabled?
 HELPDESK_KB_ENABLED = True
 
