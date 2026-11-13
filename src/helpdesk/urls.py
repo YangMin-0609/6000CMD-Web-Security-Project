@@ -23,7 +23,6 @@ from helpdesk.views.api import (
     TicketViewSet,
     UserTicketViewSet,
 )
-
 from helpdesk.views.attachments import attachment_download
 
 if helpdesk_settings.HELPDESK_KB_ENABLED:

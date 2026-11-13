@@ -33,9 +33,9 @@ from rest_framework import serializers
 from helpdesk import settings as helpdesk_settings
 
 from .lib import convert_value, daily_time_spent_calculation, format_time_spent
+from .private_attachment import private_attachment_storage
 from .templated_email import send_templated_mail
 from .validators import validate_file_extension
-from .private_attachment import private_attachment_storage
 
 User = get_user_model()
 
@@ -2313,4 +2313,4 @@ class ChecklistTask(models.Model):
 
 
 # 3.2.4 Audit logging: security events (defined in a separate module)
-from .security_models import SecurityEvent  # noqa: E402, F401
+from .security_models import SecurityEvent  # noqa: F401

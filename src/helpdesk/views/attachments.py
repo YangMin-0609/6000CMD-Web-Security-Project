@@ -28,7 +28,9 @@ def attachment_download(request, ticket_id, attachment_id):
 
     ticket = attachment.followup.ticket
 
-    can_view_as_staff = user.is_staff and huser_from_request(request).can_access_ticket(ticket)
+    can_view_as_staff = user.is_staff and huser_from_request(request).can_access_ticket(
+        ticket
+    )
 
     account_email = (user.email or "").strip().casefold()
     submitter_email = (ticket.submitter_email or "").strip().casefold()
@@ -59,12 +61,7 @@ def attachment_download(request, ticket_id, attachment_id):
         "text/plain",
     }
 
-    mime_type = (
-        (attachment.mime_type or "")
-        .split(";", 1)[0]
-        .strip()
-        .lower()
-    )
+    mime_type = (attachment.mime_type or "").split(";", 1)[0].strip().lower()
 
     if mime_type not in inline_types:
         return HttpResponse(

@@ -352,7 +352,9 @@ class TicketTest(APITestCase):
         self.client.force_authenticate(staff_user)
         test_file = SimpleUploadedFile(
             "file.jpg",
-            (Path(__file__).resolve().parent.parent / "test_files" / "genuine.jpg").read_bytes(),
+            (
+                Path(__file__).resolve().parent.parent / "test_files" / "genuine.jpg"
+            ).read_bytes(),
             content_type="image/jpeg",
         )
         response = self.client.post(
@@ -388,7 +390,9 @@ class TicketTest(APITestCase):
         ticket = Ticket.objects.create(queue=self.queue, title="Test")
         test_file_1 = SimpleUploadedFile(
             "file.jpg",
-            (Path(__file__).resolve().parent.parent / "test_files" / "genuine.jpg").read_bytes(),
+            (
+                Path(__file__).resolve().parent.parent / "test_files" / "genuine.jpg"
+            ).read_bytes(),
             content_type="image/jpeg",
         )
         test_file_2 = SimpleUploadedFile(

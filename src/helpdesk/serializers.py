@@ -1,15 +1,15 @@
-from django.core.exceptions import ValidationError as DjangoValidationError
 from django.contrib.auth import get_user_model
 from django.contrib.humanize.templatetags import humanize
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from .forms import TicketForm
 from .lib import format_time_spent
 from .models import CustomField, FollowUp, FollowUpAttachment, Ticket
-from .validators import validate_file_extension
 from .update_ticket import update_ticket
 from .user import HelpdeskUser
+from .validators import validate_file_extension
 
 
 class DatatablesTicketSerializer(serializers.ModelSerializer):

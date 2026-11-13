@@ -47,8 +47,9 @@ class AuditLoggingTests(TestCase):
         cache.clear()
 
     def login(self, username, password):
-        return self.client.post(reverse("helpdesk:login"),
-                                {"username": username, "password": password})
+        return self.client.post(
+            reverse("helpdesk:login"), {"username": username, "password": password}
+        )
 
     def test_login_failure_and_success_are_recorded(self):
         self.login("alice", "wrong")
@@ -97,7 +98,9 @@ class AuditLoggingTests(TestCase):
 
     def test_admin_action_is_recorded_with_actor(self):
         self.client.force_login(self.admin)
-        response = self.client.post(reverse("admin:auth_group_add"), {"name": "Auditors"})
+        response = self.client.post(
+            reverse("admin:auth_group_add"), {"name": "Auditors"}
+        )
         self.assertEqual(response.status_code, 302)
         action = events("ADMIN_ACTION").get()
         self.assertEqual(action.actor, self.admin)
@@ -122,13 +125,18 @@ class AuditLoggingTests(TestCase):
 
     def test_control_characters_are_removed(self):
         self.login("evil\nAUDIT LOGIN_SUCCESS", "wrong")
-        self.assertEqual(events("LOGIN_FAILED").get().username, "evil?AUDIT LOGIN_SUCCESS")
+        self.assertEqual(
+            events("LOGIN_FAILED").get().username, "evil?AUDIT LOGIN_SUCCESS"
+        )
 
     def test_audit_failure_does_not_break_login(self):
-        with mock.patch.object(SecurityEvent.objects, "create",
-                               side_effect=DatabaseError("disk full")):
-            with self.assertLogs("helpdesk.security", level="ERROR") as logs:
-                response = self.login("alice", PASSWORD)
+        with (
+            mock.patch.object(
+                SecurityEvent.objects, "create", side_effect=DatabaseError("disk full")
+            ),
+            self.assertLogs("helpdesk.security", level="ERROR") as logs,
+        ):
+            response = self.login("alice", PASSWORD)
         self.assertEqual(response.status_code, 302)  # user still logged in
         self.assertIn("AUDIT_WRITE_FAILED", "\n".join(logs.output))
 
@@ -139,13 +147,17 @@ class AuditLoggingTests(TestCase):
         ],
         HELPDESK_LOGIN_FAILURE_LIMIT=5,
     )
-    @modify_settings(MIDDLEWARE={"append": "helpdesk.login_rate_limit.LoginRateLimitMiddleware"})
+    @modify_settings(
+        MIDDLEWARE={"append": "helpdesk.login_rate_limit.LoginRateLimitMiddleware"}
+    )
     def test_sec03_lockout_and_blocked_attempts_are_recorded(self):
         for _ in range(5):
             self.login("alice", "wrong")
         self.assertEqual(self.login("alice", PASSWORD).status_code, 429)
 
-        self.assertEqual(events("LOGIN_FAILED").count(), 5)  # blocked attempt not counted
+        self.assertEqual(
+            events("LOGIN_FAILED").count(), 5
+        )  # blocked attempt not counted
         lockout = events("LOGIN_LOCKOUT").get()
         self.assertEqual(lockout.severity, "CRITICAL")
         self.assertEqual(lockout.ip_address, "127.0.0.1")
@@ -174,7 +186,8 @@ class SecureUserAdminTests(TestCase):
         )
         cls.manager.user_permissions.add(
             *Permission.objects.filter(
-                content_type__app_label="auth", codename__in=["view_user", "change_user"]
+                content_type__app_label="auth",
+                codename__in=["view_user", "change_user"],
             )
         )
 
@@ -192,32 +205,50 @@ class SecureUserAdminTests(TestCase):
         self.assertIsInstance(self.model_admin, SecureUserAdmin)
 
     def test_privilege_fields_are_read_only_for_non_superusers(self):
-        readonly = self.model_admin.get_readonly_fields(self.request_as(self.manager), self.manager)
+        readonly = self.model_admin.get_readonly_fields(
+            self.request_as(self.manager), self.manager
+        )
         for field in ("is_superuser", "is_staff", "groups", "user_permissions"):
             self.assertIn(field, readonly)
-        readonly_root = self.model_admin.get_readonly_fields(self.request_as(self.root), self.manager)
+        readonly_root = self.model_admin.get_readonly_fields(
+            self.request_as(self.root), self.manager
+        )
         self.assertNotIn("is_superuser", readonly_root)
 
     def test_manager_page_has_no_superuser_checkbox(self):
         self.client.force_login(self.manager)
-        response = self.client.get(reverse("admin:auth_user_change", args=[self.manager.pk]))
+        response = self.client.get(
+            reverse("admin:auth_user_change", args=[self.manager.pk])
+        )
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'name="is_superuser"')
 
     def test_superusers_are_hidden_from_non_superusers(self):
         queryset = self.model_admin.get_queryset(self.request_as(self.manager))
         self.assertNotIn(self.root, queryset)
-        self.assertFalse(self.model_admin.has_change_permission(self.request_as(self.manager), self.root))
-        self.assertFalse(self.model_admin.has_delete_permission(self.request_as(self.manager), self.root))
+        self.assertFalse(
+            self.model_admin.has_change_permission(
+                self.request_as(self.manager), self.root
+            )
+        )
+        self.assertFalse(
+            self.model_admin.has_delete_permission(
+                self.request_as(self.manager), self.root
+            )
+        )
 
         self.client.force_login(self.manager)
-        response = self.client.get(reverse("admin:auth_user_change", args=[self.root.pk]))
+        response = self.client.get(
+            reverse("admin:auth_user_change", args=[self.root.pk])
+        )
         self.assertNotEqual(response.status_code, 200)
 
     def test_server_side_check_reverts_escalation_and_logs_it(self):
         """Defence in depth: even if a request bypasses the form, save_model refuses."""
         self.manager.is_superuser = True  # simulated tampering
-        self.model_admin.save_model(self.request_as(self.manager), self.manager, None, True)
+        self.model_admin.save_model(
+            self.request_as(self.manager), self.manager, None, True
+        )
 
         self.manager.refresh_from_db()
         self.assertFalse(self.manager.is_superuser)
@@ -227,21 +258,29 @@ class SecureUserAdminTests(TestCase):
 
     def test_superuser_can_still_grant_privileges(self):
         self.manager.is_superuser = True
-        self.model_admin.save_model(self.request_as(self.root), self.manager, None, True)
+        self.model_admin.save_model(
+            self.request_as(self.root), self.manager, None, True
+        )
         self.manager.refresh_from_db()
         self.assertTrue(self.manager.is_superuser)
 
     def test_superuser_can_add_and_edit_users_through_admin(self):
         """Real admin requests (request.user is a lazy wrapper) must work end to end."""
         self.client.force_login(self.root)
-        response = self.client.post(reverse("admin:auth_user_add"), {
-            "username": "normal_user",
-            "password1": PASSWORD,
-            "password2": PASSWORD,
-            "usable_password": "true",
-        })
-        self.assertEqual(response.status_code, 302, getattr(response, "context", None)
-                         and response.context.get("errors"))
+        response = self.client.post(
+            reverse("admin:auth_user_add"),
+            {
+                "username": "normal_user",
+                "password1": PASSWORD,
+                "password2": PASSWORD,
+                "usable_password": "true",
+            },
+        )
+        self.assertEqual(
+            response.status_code,
+            302,
+            getattr(response, "context", None) and response.context.get("errors"),
+        )
         self.assertTrue(User.objects.filter(username="normal_user").exists())
 
     def test_manager_post_cannot_make_themselves_superuser(self):
@@ -249,25 +288,32 @@ class SecureUserAdminTests(TestCase):
         self.client.force_login(self.manager)
         url = reverse("admin:auth_user_change", args=[self.manager.pk])
         joined = timezone.localtime(self.manager.date_joined)
-        self.client.post(url, {
-            "username": "manager",
-            "email": "manager@example.com",
-            "is_active": "on",
-            "is_staff": "on",
-            "is_superuser": "on",  # attacker adds this field by hand
-            "date_joined_0": joined.strftime("%Y-%m-%d"),
-            "date_joined_1": joined.strftime("%H:%M:%S"),
-        })
+        self.client.post(
+            url,
+            {
+                "username": "manager",
+                "email": "manager@example.com",
+                "is_active": "on",
+                "is_staff": "on",
+                "is_superuser": "on",  # attacker adds this field by hand
+                "date_joined_0": joined.strftime("%Y-%m-%d"),
+                "date_joined_1": joined.strftime("%H:%M:%S"),
+            },
+        )
         self.manager.refresh_from_db()
         self.assertFalse(self.manager.is_superuser)
 
     def test_audit_log_is_read_only_in_admin(self):
         self.client.force_login(self.root)
         self.assertEqual(
-            self.client.get(reverse("admin:helpdesk_securityevent_changelist")).status_code, 200
+            self.client.get(
+                reverse("admin:helpdesk_securityevent_changelist")
+            ).status_code,
+            200,
         )
         self.assertEqual(
-            self.client.get(reverse("admin:helpdesk_securityevent_add")).status_code, 403
+            self.client.get(reverse("admin:helpdesk_securityevent_add")).status_code,
+            403,
         )
 
 
@@ -278,12 +324,22 @@ class SecurityDashboardTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.root = User.objects.create_superuser("root", "root@example.com", PASSWORD)
-        cls.staff = User.objects.create_user("agent", "agent@example.com", PASSWORD, is_staff=True)
+        cls.staff = User.objects.create_user(
+            "agent", "agent@example.com", PASSWORD, is_staff=True
+        )
         cls.user = User.objects.create_user("alice", "alice@example.com", PASSWORD)
-        SecurityEvent.objects.create(event_type="LOGIN_FAILED", username="agent",
-                                     ip_address="10.1.2.3", severity="WARNING")
-        SecurityEvent.objects.create(event_type="LOGIN_LOCKOUT", username="victim",
-                                     ip_address="198.51.100.7", severity="CRITICAL")
+        SecurityEvent.objects.create(
+            event_type="LOGIN_FAILED",
+            username="agent",
+            ip_address="10.1.2.3",
+            severity="WARNING",
+        )
+        SecurityEvent.objects.create(
+            event_type="LOGIN_LOCKOUT",
+            username="victim",
+            ip_address="198.51.100.7",
+            severity="CRITICAL",
+        )
 
     def setUp(self):
         self.url = reverse("helpdesk:security_dashboard")
@@ -328,16 +384,23 @@ class SecurityDashboardTests(TestCase):
 
     def test_invalid_filter_values_are_ignored(self):
         self.client.force_login(self.root)
-        response = self.client.get(self.url, {
-            "event_type": "<script>", "severity": "nope",
-            "date_from": "not-a-date", "date_to": "2026-13-40", "page": "abc",
-        })
+        response = self.client.get(
+            self.url,
+            {
+                "event_type": "<script>",
+                "severity": "nope",
+                "date_from": "not-a-date",
+                "date_to": "2026-13-40",
+                "page": "abc",
+            },
+        )
         self.assertEqual(response.status_code, 200)
 
     def test_brute_force_alert_for_superuser(self):
         for _ in range(10):
-            SecurityEvent.objects.create(event_type="LOGIN_FAILED", username="admin",
-                                         ip_address="203.0.113.9")
+            SecurityEvent.objects.create(
+                event_type="LOGIN_FAILED", username="admin", ip_address="203.0.113.9"
+            )
         self.client.force_login(self.root)
         response = self.client.get(self.url)
         self.assertContains(response, "Possible brute-force attack")
@@ -346,11 +409,14 @@ class SecurityDashboardTests(TestCase):
     def test_staff_get_personal_alert(self):
         self.client.force_login(self.staff)
         response = self.client.get(self.url)
-        self.assertContains(response, "failed or blocked sign-in attempts on your account")
+        self.assertContains(
+            response, "failed or blocked sign-in attempts on your account"
+        )
 
     def test_event_text_is_html_escaped(self):
-        SecurityEvent.objects.create(event_type="LOGIN_FAILED",
-                                     username="<script>alert(1)</script>")
+        SecurityEvent.objects.create(
+            event_type="LOGIN_FAILED", username="<script>alert(1)</script>"
+        )
         self.client.force_login(self.root)
         response = self.client.get(self.url)
         self.assertNotContains(response, "<script>alert(1)</script>")

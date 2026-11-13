@@ -69,8 +69,12 @@ class ExtensionAllowlistTestCase(TestCase):
 
     def test_ordinary_extensions_still_allowed(self):
         for name in (
-            "notes.txt", "scan.pdf", "report.docx", "manual.odt",
-            "message.eml", "signature.asc",
+            "notes.txt",
+            "scan.pdf",
+            "report.docx",
+            "manual.odt",
+            "message.eml",
+            "signature.asc",
         ):
             with self.subTest(name=name):
                 validate_file_extension(SimpleUploadedFile(name, b"x"))
@@ -100,9 +104,7 @@ class ExtensionAllowlistTestCase(TestCase):
         image_data = BytesIO()
         Image.new("RGB", (1, 1), color="blue").save(image_data, format="PNG")
         content = image_data.getvalue()
-        uploaded = TemporaryUploadedFile(
-            "disk.png", "image/png", len(content), "utf-8"
-        )
+        uploaded = TemporaryUploadedFile("disk.png", "image/png", len(content), "utf-8")
         try:
             uploaded.write(content)
             uploaded.seek(3)

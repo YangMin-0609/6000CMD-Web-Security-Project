@@ -69,7 +69,9 @@ class AttachmentIntegrationTests(TestCase):
         self.assertEqual(disk_content, "attached file content")
 
     def test_create_pub_ticket_with_attachment_utf8(self):
-        test_file = SimpleUploadedFile("ÃŸÂ°Ã¤Ã¶Ã¼.txt", "à¹‚à¸ˆ".encode(), "text/utf-8")
+        test_file = SimpleUploadedFile(
+            "ÃŸÂ°Ã¤Ã¶Ã¼.txt", "à¹‚à¸ˆ".encode(), "text/utf-8"
+        )
         post_data = self.ticket_data.copy()
         post_data.update(
             {
@@ -86,9 +88,7 @@ class AttachmentIntegrationTests(TestCase):
         att = models.FollowUpAttachment.objects.get(
             followup__ticket=response.context["ticket"]
         )
-        with open(
-            att.file.path, encoding="utf-8"
-        ) as file_on_disk:
+        with open(att.file.path, encoding="utf-8") as file_on_disk:
             disk_content = smart_str(file_on_disk.read(), "utf-8")
         self.assertEqual(disk_content, "à¹‚à¸ˆ")
 

@@ -78,7 +78,10 @@ class HelpdeskUser:
         """Check to see if the user has permission to access
         a ticket. If not then deny access."""
         user = self.user
-        if helpdesk_settings.HELPDESK_ENABLE_PER_QUEUE_STAFF_PERMISSION and user.is_staff:
+        if (
+            helpdesk_settings.HELPDESK_ENABLE_PER_QUEUE_STAFF_PERMISSION
+            and user.is_staff
+        ):
             return self.can_access_queue(ticket.queue)
         return bool(
             self.can_access_queue(ticket.queue)

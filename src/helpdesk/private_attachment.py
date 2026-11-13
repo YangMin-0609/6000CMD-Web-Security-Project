@@ -1,4 +1,5 @@
 """Non-public filesystem storage for ticket attachments"""
+
 import os
 from pathlib import Path
 
@@ -16,8 +17,13 @@ class PrivateAttachmentStorage(FileSystemStorage):
     @property
     def location(self):
         base = Path(getattr(settings, "BASE_DIR", Path.cwd()))
-        private = Path(getattr(settings, "HELPDESK_PRIVATE_ATTACHMENT_ROOT",
-                               base / "private_helpdesk_attachments")).resolve()
+        private = Path(
+            getattr(
+                settings,
+                "HELPDESK_PRIVATE_ATTACHMENT_ROOT",
+                base / "private_helpdesk_attachments",
+            )
+        ).resolve()
         media_root = getattr(settings, "MEDIA_ROOT", "")
         if media_root and private.is_relative_to(Path(media_root).resolve()):
             raise ImproperlyConfigured(

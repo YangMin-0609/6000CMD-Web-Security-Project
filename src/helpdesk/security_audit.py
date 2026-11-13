@@ -36,7 +36,11 @@ import logging
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.auth.signals import user_logged_in, user_logged_out, user_login_failed
+from django.contrib.auth.signals import (
+    user_logged_in,
+    user_logged_out,
+    user_login_failed,
+)
 from django.db import transaction
 from django.db.models.signals import m2m_changed, post_delete, post_save, pre_save
 
@@ -79,8 +83,18 @@ def mask_ip(ip):
 # Recording
 # ---------------------------------------------------------------------------
 
-def record(event_type, *, request=None, actor=None, username="", severity="INFO",
-           description="", ip=None, log=True):
+
+def record(
+    event_type,
+    *,
+    request=None,
+    actor=None,
+    username="",
+    severity="INFO",
+    description="",
+    ip=None,
+    log=True,
+):
     """
     Store one security event. Never raises.
 
@@ -109,7 +123,7 @@ def record(event_type, *, request=None, actor=None, username="", severity="INFO"
         if ip is None:
             try:
                 ip = get_client_ip(django_request)
-            except Exception:  # pragma: no cover - defensive
+            except AttributeError:  # pragma: no cover - malformed request metadata
                 ip = ""
     ip = ip or ""
 
@@ -119,9 +133,14 @@ def record(event_type, *, request=None, actor=None, username="", severity="INFO"
     if log:
         level = logging.WARNING if severity in ("WARNING", "CRITICAL") else logging.INFO
         logger.log(
-            level, "AUDIT %s severity=%s username=%s actor=%s ip=%s %s",
-            event_type, severity, username,
-            _clean(actor.get_username(), 150) if actor else "-", ip or "-", description,
+            level,
+            "AUDIT %s severity=%s username=%s actor=%s ip=%s %s",
+            event_type,
+            severity,
+            username,
+            _clean(actor.get_username(), 150) if actor else "-",
+            ip or "-",
+            description,
         )
 
     try:
@@ -143,6 +162,7 @@ def record(event_type, *, request=None, actor=None, username="", severity="INFO"
 # ---------------------------------------------------------------------------
 # Middleware: request context, HTTP 403s, admin actions, ticket access
 # ---------------------------------------------------------------------------
+
 
 class SecurityAuditMiddleware:
     """Must be placed after AuthenticationMiddleware."""
@@ -169,7 +189,9 @@ class SecurityAuditMiddleware:
 
         if response.status_code == 403:
             # A wrong HTTP Basic password is already recorded as LOGIN_FAILED
-            basic_login = request.META.get("HTTP_AUTHORIZATION", "").lower().startswith("basic ")
+            basic_login = (
+                request.META.get("HTTP_AUTHORIZATION", "").lower().startswith("basic ")
+            )
             if user is None and basic_login:
                 return
             record(
@@ -196,7 +218,8 @@ class SecurityAuditMiddleware:
                 "ADMIN_ACTION",
                 request=request,
                 username=user.get_username() if user else "",
-                description=f"{match.url_name}" + (f" object={object_id}" if object_id else ""),
+                description=f"{match.url_name}"
+                + (f" object={object_id}" if object_id else ""),
             )
             return
 
@@ -221,22 +244,36 @@ class SecurityAuditMiddleware:
 # Signal receivers
 # ---------------------------------------------------------------------------
 
+
 def on_login_success(sender, request, user, **kwargs):
-    record("LOGIN_SUCCESS", request=request, actor=user,
-           username=user.get_username(), log=False)
+    record(
+        "LOGIN_SUCCESS",
+        request=request,
+        actor=user,
+        username=user.get_username(),
+        log=False,
+    )
 
 
 def on_login_failed(sender, credentials, request=None, **kwargs):
-    from .login_rate_limit import LOCKED_ATTR, _django_request, _username_from_credentials
+    from .login_rate_limit import (
+        LOCKED_ATTR,
+        _django_request,
+        _username_from_credentials,
+    )
 
     if request is None:
         return
     # A blocked attempt during a lockout is recorded as LOGIN_BLOCKED instead
     if getattr(_django_request(request), LOCKED_ATTR, None):
         return
-    record("LOGIN_FAILED", request=request,
-           username=_username_from_credentials(credentials) or "",
-           severity="WARNING", log=False)
+    record(
+        "LOGIN_FAILED",
+        request=request,
+        username=_username_from_credentials(credentials) or "",
+        severity="WARNING",
+        log=False,
+    )
 
 
 def on_logout(sender, request, user, **kwargs):
@@ -262,9 +299,12 @@ def on_user_post_save(sender, instance, created, raw=False, **kwargs):
     username = instance.get_username()
     if created:
         flags = ", ".join(f for f in PRIVILEGE_FIELDS[:2] if getattr(instance, f))
-        record("USER_CREATED", username=username,
-               severity="WARNING" if instance.is_superuser else "INFO",
-               description=f"Account created{' with ' + flags if flags else ''}")
+        record(
+            "USER_CREATED",
+            username=username,
+            severity="WARNING" if instance.is_superuser else "INFO",
+            description=f"Account created{' with ' + flags if flags else ''}",
+        )
         return
 
     old = getattr(instance, "_audit_old_flags", None)
@@ -279,45 +319,76 @@ def on_user_post_save(sender, instance, created, raw=False, **kwargs):
     if not changes:
         return
     became_superuser = not old["is_superuser"] and instance.is_superuser
-    record("PRIVILEGE_CHANGE", username=username,
-           severity="CRITICAL" if became_superuser else "WARNING",
-           description="; ".join(changes))
+    record(
+        "PRIVILEGE_CHANGE",
+        username=username,
+        severity="CRITICAL" if became_superuser else "WARNING",
+        description="; ".join(changes),
+    )
 
 
 def on_user_deleted(sender, instance, **kwargs):
-    record("USER_DELETED", username=instance.get_username(), severity="WARNING",
-           description="Account deleted")
+    record(
+        "USER_DELETED",
+        username=instance.get_username(),
+        severity="WARNING",
+        description="Account deleted",
+    )
 
 
 def on_role_change(sender, instance, action, reverse, model, pk_set, **kwargs):
     if action not in ("post_add", "post_remove", "post_clear"):
         return
     User = get_user_model()
-    verb = {"post_add": "added", "post_remove": "removed", "post_clear": "cleared"}[action]
+    verb = {"post_add": "added", "post_remove": "removed", "post_clear": "cleared"}[
+        action
+    ]
     relation = "groups" if sender is User.groups.through else "permissions"
 
     if not reverse:
         # user.groups.add(...) / user.user_permissions.remove(...)
         names = ", ".join(str(obj) for obj in model.objects.filter(pk__in=pk_set or []))
-        record("ROLE_CHANGE", username=instance.get_username(), severity="WARNING",
-               description=f"{relation} {verb}: {names or 'all'}")
+        record(
+            "ROLE_CHANGE",
+            username=instance.get_username(),
+            severity="WARNING",
+            description=f"{relation} {verb}: {names or 'all'}",
+        )
     else:
         # group.user_set.add(...): one event per affected user
         for user in User.objects.filter(pk__in=pk_set or []):
-            record("ROLE_CHANGE", username=user.get_username(), severity="WARNING",
-                   description=f"{relation} {verb}: {instance}")
+            record(
+                "ROLE_CHANGE",
+                username=user.get_username(),
+                severity="WARNING",
+                description=f"{relation} {verb}: {instance}",
+            )
 
 
 def connect_signals():
     User = get_user_model()
     user_logged_in.connect(on_login_success, dispatch_uid="helpdesk_audit_login")
-    user_login_failed.connect(on_login_failed, dispatch_uid="helpdesk_audit_login_failed")
+    user_login_failed.connect(
+        on_login_failed, dispatch_uid="helpdesk_audit_login_failed"
+    )
     user_logged_out.connect(on_logout, dispatch_uid="helpdesk_audit_logout")
-    pre_save.connect(on_user_pre_save, sender=User, dispatch_uid="helpdesk_audit_user_pre")
-    post_save.connect(on_user_post_save, sender=User, dispatch_uid="helpdesk_audit_user_post")
-    post_delete.connect(on_user_deleted, sender=User, dispatch_uid="helpdesk_audit_user_del")
+    pre_save.connect(
+        on_user_pre_save, sender=User, dispatch_uid="helpdesk_audit_user_pre"
+    )
+    post_save.connect(
+        on_user_post_save, sender=User, dispatch_uid="helpdesk_audit_user_post"
+    )
+    post_delete.connect(
+        on_user_deleted, sender=User, dispatch_uid="helpdesk_audit_user_del"
+    )
     if hasattr(User, "groups") and hasattr(User, "user_permissions"):
-        m2m_changed.connect(on_role_change, sender=User.groups.through,
-                            dispatch_uid="helpdesk_audit_groups")
-        m2m_changed.connect(on_role_change, sender=User.user_permissions.through,
-                            dispatch_uid="helpdesk_audit_perms")
+        m2m_changed.connect(
+            on_role_change,
+            sender=User.groups.through,
+            dispatch_uid="helpdesk_audit_groups",
+        )
+        m2m_changed.connect(
+            on_role_change,
+            sender=User.user_permissions.through,
+            dispatch_uid="helpdesk_audit_perms",
+        )

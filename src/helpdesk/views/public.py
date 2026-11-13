@@ -285,9 +285,10 @@ class ViewTicket(TemplateView):
 
     def get_next_url(self, ticket_id):
         redirect_url = ""
-        if is_helpdesk_staff(self.request.user):
-            redirect_url = reverse("helpdesk:view", args=[ticket_id])
-        elif helpdesk_settings.HELPDESK_NAVIGATION_ENABLED:
+        if (
+            is_helpdesk_staff(self.request.user)
+            or helpdesk_settings.HELPDESK_NAVIGATION_ENABLED
+        ):
             redirect_url = reverse("helpdesk:view", args=[ticket_id])
         return redirect_url
 

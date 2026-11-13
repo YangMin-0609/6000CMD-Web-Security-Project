@@ -41,14 +41,18 @@ class LoginRateLimitTests(TestCase):
         cls.agent = User.objects.create_user(
             "support_agent", "agent@example.com", PASSWORD, is_staff=True
         )
-        cls.admin = User.objects.create_superuser("admin", "admin@example.com", PASSWORD)
+        cls.admin = User.objects.create_superuser(
+            "admin", "admin@example.com", PASSWORD
+        )
 
     def setUp(self):
         cache.clear()
         self.login_url = reverse("helpdesk:login")
 
     # ---------------------------------------------------------------- helpers
-    def login(self, username="support_agent", password=PASSWORD, ip="127.0.0.1", **extra):
+    def login(
+        self, username="support_agent", password=PASSWORD, ip="127.0.0.1", **extra
+    ):
         return self.client.post(
             self.login_url,
             {"username": username, "password": password},
@@ -110,7 +114,13 @@ class LoginRateLimitTests(TestCase):
         self.assertBlocked(self.login(username="no_such_user"))
 
     def test_username_case_does_not_bypass_the_limit(self):
-        for name in ["support_agent", "SUPPORT_AGENT", "Support_Agent", "support_AGENT", "SuPpOrT_aGeNt"]:
+        for name in [
+            "support_agent",
+            "SUPPORT_AGENT",
+            "Support_Agent",
+            "support_AGENT",
+            "SuPpOrT_aGeNt",
+        ]:
             self.login(name, WRONG)
         self.assertBlocked(self.login())
 
@@ -119,7 +129,9 @@ class LoginRateLimitTests(TestCase):
         self.fail(5, ip="10.0.0.66")
         self.assertBlocked(self.login(ip="10.0.0.66"))
         self.assertLoggedIn(self.login(ip="10.0.0.10"))  # real user elsewhere
-        self.assertLoggedIn(self.login(username="admin", ip="10.0.0.66"))  # other account
+        self.assertLoggedIn(
+            self.login(username="admin", ip="10.0.0.66")
+        )  # other account
 
     def test_password_spraying_from_one_ip_is_blocked(self):
         """Trying one password against many accounts trips the per-IP limit."""
@@ -181,7 +193,9 @@ class LoginRateLimitTests(TestCase):
     def test_newlines_in_username_cannot_forge_log_lines(self):
         with self.assertLogs("helpdesk.security", level="INFO") as logs:
             self.login("evil\nLOGIN_SUCCESS username=admin", WRONG)
-        self.assertNotIn("\nLOGIN_SUCCESS", "\n".join(record.getMessage() for record in logs.records))
+        self.assertNotIn(
+            "\nLOGIN_SUCCESS", "\n".join(record.getMessage() for record in logs.records)
+        )
 
     # ---------------------------------------------------------- feature switch
     @override_settings(HELPDESK_LOGIN_RATE_LIMIT_ENABLED=False)

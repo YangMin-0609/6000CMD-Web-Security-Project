@@ -33,6 +33,7 @@ from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
+
 from .security_audit import record
 from .security_models import SecurityEvent
 
@@ -76,7 +77,9 @@ class SecureUserAdmin(UserAdmin):
         same user, so trusting in-memory attributes could let a tampered
         object approve its own privilege change.
         """
-        user = request.user  # usually a SimpleLazyObject wrapper, so use get_user_model()
+        user = (
+            request.user
+        )  # usually a SimpleLazyObject wrapper, so use get_user_model()
         if not (user.is_authenticated and user.is_active):
             return False
         return get_user_model().objects.filter(pk=user.pk, is_superuser=True).exists()
@@ -85,12 +88,18 @@ class SecureUserAdmin(UserAdmin):
         """Server-side re-check, independent of what the form displayed."""
         User = get_user_model()
         if change:
-            old = User.objects.filter(pk=obj.pk).values("is_superuser", "is_staff").first()
+            old = (
+                User.objects.filter(pk=obj.pk)
+                .values("is_superuser", "is_staff")
+                .first()
+            )
         else:
             old = None
         old = old or {"is_superuser": False, "is_staff": False}
 
-        attempted = [f for f in ("is_superuser", "is_staff") if getattr(obj, f) != old[f]]
+        attempted = [
+            f for f in ("is_superuser", "is_staff") if getattr(obj, f) != old[f]
+        ]
         if not attempted:
             return
         for field in attempted:
@@ -111,8 +120,15 @@ class SecureUserAdmin(UserAdmin):
 
 
 class SecurityEventAdmin(admin.ModelAdmin):
-    list_display = ("timestamp", "event_type", "severity", "username", "actor",
-                    "ip_address", "description")
+    list_display = (
+        "timestamp",
+        "event_type",
+        "severity",
+        "username",
+        "actor",
+        "ip_address",
+        "description",
+    )
     list_filter = ("event_type", "severity")
     search_fields = ("username", "ip_address", "description")
     date_hierarchy = "timestamp"

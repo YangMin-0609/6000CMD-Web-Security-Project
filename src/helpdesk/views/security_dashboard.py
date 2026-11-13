@@ -91,7 +91,9 @@ def _apply_filters(events, params, full_access):
         filters["severity"] = ""
 
     if filters["q"]:
-        search = Q(username__icontains=filters["q"]) | Q(description__icontains=filters["q"])
+        search = Q(username__icontains=filters["q"]) | Q(
+            description__icontains=filters["q"]
+        )
         if full_access:  # only superusers may search by IP address
             search |= Q(ip_address__icontains=filters["q"])
         events = events.filter(search)
@@ -131,7 +133,9 @@ def _daily_activity(events, days=7):
         .values("day", "event_type")
         .annotate(n=Count("id"))
     )
-    per_day = {first_day + timedelta(days=i): {"failed": 0, "denied": 0} for i in range(days)}
+    per_day = {
+        first_day + timedelta(days=i): {"failed": 0, "denied": 0} for i in range(days)
+    }
     for row in rows:
         bucket = per_day.get(row["day"])
         if bucket is None:
@@ -165,11 +169,13 @@ def _alerts(user, events, since):
             .order_by("-n")
         )
         for row in noisy_ips:
-            alerts.append({
-                "level": "danger",
-                "text": f"Possible brute-force attack: {row['n']} failed logins "
-                        f"from {row['ip_address']} in the last 24 hours.",
-            })
+            alerts.append(
+                {
+                    "level": "danger",
+                    "text": f"Possible brute-force attack: {row['n']} failed logins "
+                    f"from {row['ip_address']} in the last 24 hours.",
+                }
+            )
         repeated = (
             recent.filter(event_type="LOGIN_LOCKOUT")
             .values("username")
@@ -177,36 +183,46 @@ def _alerts(user, events, since):
             .filter(n__gte=LOCKOUTS_PER_ACCOUNT_ALERT)
         )
         for row in repeated:
-            alerts.append({
-                "level": "warning",
-                "text": f"Account '{row['username']}' was locked {row['n']} times "
-                        f"in the last 24 hours.",
-            })
+            alerts.append(
+                {
+                    "level": "warning",
+                    "text": f"Account '{row['username']}' was locked {row['n']} times "
+                    f"in the last 24 hours.",
+                }
+            )
         escalations = recent.filter(event_type="ESCALATION_BLOCKED").count()
         if escalations:
-            alerts.append({
-                "level": "danger",
-                "text": f"{escalations} blocked privilege-escalation attempt(s) "
-                        f"in the last 24 hours.",
-            })
-        new_superusers = recent.filter(event_type="PRIVILEGE_CHANGE", severity="CRITICAL").count()
+            alerts.append(
+                {
+                    "level": "danger",
+                    "text": f"{escalations} blocked privilege-escalation attempt(s) "
+                    f"in the last 24 hours.",
+                }
+            )
+        new_superusers = recent.filter(
+            event_type="PRIVILEGE_CHANGE", severity="CRITICAL"
+        ).count()
         if new_superusers:
-            alerts.append({
-                "level": "warning",
-                "text": f"{new_superusers} account(s) were given superuser status "
-                        f"in the last 24 hours. Confirm these changes were authorised.",
-            })
+            alerts.append(
+                {
+                    "level": "warning",
+                    "text": f"{new_superusers} account(s) were given superuser status "
+                    f"in the last 24 hours. Confirm these changes were authorised.",
+                }
+            )
     else:
         failures = recent.filter(
             event_type__in=["LOGIN_FAILED", "LOGIN_BLOCKED", "LOGIN_LOCKOUT"]
         ).count()
         if failures:
-            alerts.append({
-                "level": "warning",
-                "text": f"There were {failures} failed or blocked sign-in attempts on your "
-                        f"account in the last 24 hours. If this was not you, change your "
-                        f"password and tell an administrator.",
-            })
+            alerts.append(
+                {
+                    "level": "warning",
+                    "text": f"There were {failures} failed or blocked sign-in attempts on your "
+                    f"account in the last 24 hours. If this was not you, change your "
+                    f"password and tell an administrator.",
+                }
+            )
     return alerts
 
 
@@ -235,8 +251,9 @@ def security_dashboard(request):
     top_ips = []
     if full_access:
         top_ips = list(
-            scoped.filter(timestamp__gte=since,
-                          event_type__in=["LOGIN_FAILED", "LOGIN_BLOCKED"])
+            scoped.filter(
+                timestamp__gte=since, event_type__in=["LOGIN_FAILED", "LOGIN_BLOCKED"]
+            )
             .exclude(ip_address="")
             .values("ip_address")
             .annotate(n=Count("id"))

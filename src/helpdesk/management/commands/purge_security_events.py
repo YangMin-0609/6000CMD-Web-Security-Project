@@ -29,7 +29,9 @@ class Command(BaseCommand):
             default=getattr(settings, "HELPDESK_SECURITY_EVENT_RETENTION_DAYS", 90),
             help="Keep events from the last N days (default: setting or 90).",
         )
-        parser.add_argument("--dry-run", action="store_true", help="Only count, do not delete.")
+        parser.add_argument(
+            "--dry-run", action="store_true", help="Only count, do not delete."
+        )
 
     def handle(self, *args, **options):
         days = options["days"]
@@ -39,9 +41,13 @@ class Command(BaseCommand):
         old_events = SecurityEvent.objects.filter(timestamp__lt=cutoff)
         count = old_events.count()
         if options["dry_run"]:
-            self.stdout.write(f"{count} security event(s) older than {days} days would be deleted.")
+            self.stdout.write(
+                f"{count} security event(s) older than {days} days would be deleted."
+            )
             return
         old_events.delete()
-        self.stdout.write(self.style.SUCCESS(
-            f"Deleted {count} security event(s) older than {days} days."
-        ))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Deleted {count} security event(s) older than {days} days."
+            )
+        )
