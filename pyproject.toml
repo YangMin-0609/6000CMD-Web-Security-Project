@@ -6,7 +6,7 @@ authors = [
     {name = "Ross Poulton", email = "ross@rossp.org"},
 ]
 requires-python = ">=3.9"
-readme = "README.rst"
+readme = {file = "README.txt", content-type = "text/plain"}
 license = {text = "BSD-3-Clause"}
 keywords = ["django", "helpdesk", "django-helpdesk", "tickets", "incidents", "cases", "bugs", "track", "support"]
 maintainers = [

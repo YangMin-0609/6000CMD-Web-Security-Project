@@ -30,7 +30,7 @@ COPY --from=frontend-builder /app/src/helpdesk/static/helpdesk/vendor /opt/djang
 
 # Copy files
 COPY django-helpdesk/pyproject.toml /opt/django-helpdesk/
-COPY django-helpdesk/README.rst /opt/django-helpdesk/
+COPY django-helpdesk/README.txt /opt/django-helpdesk/
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN pip3 install --upgrade pip

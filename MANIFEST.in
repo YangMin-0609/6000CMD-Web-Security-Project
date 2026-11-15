@@ -1,4 +1,4 @@
-include README.rst
+include README.txt
 include CONTRIBUTING.rst
 include SECURITY.md
 include AUTHORS
