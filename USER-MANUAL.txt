@@ -22,19 +22,3 @@ Administrator
 1. Sign in with the local administrator account. In Django administration, open Users to manage the local demo accounts and queue permissions.
 2. Use a staff account with access to one queue to demonstrate its view of All Tickets, then use the appropriate authorised account for other queues.
 3. Open Security Log with an authorised account and inspect recorded security events. Use the demo database for assessment.
-
-Suggested lecturer walkthrough
-
-| Control | What to show |
-| --- | --- |
-| SEC-01 Queue access | The restricted staff member's queue-filtered ticket list. |
-| SEC-02 Attachment access | An authorised user opens an attachment from a test ticket. |
-| SEC-03 Login throttling | A normal test login succeeds. Use the regression evidence for throttling coverage. |
-| SEC-04 Public ticket lookup | The submitter opens the ticket using its private link. |
-| SEC-05 Ticket closure | The submitter selects Accept and Close and the staff view shows Closed with the follow-up entry. |
-| SEC-06 Upload validation | A genuine test PNG is accepted and listed on its ticket. |
-| SEC-07 User administration | An authorised administrator opens Users. |
-| SEC-08 Security audit | An authorised account opens Security Log and views recorded events. |
-| HTTPS | Show the secure Chrome connection, the HTTP 308 redirect and the Secure cookie flags. Use the saved Wireshark screenshots to show the TLS 1.3 handshake and encrypted records. |
-
-For screenshots, hide private ticket keys and cookie values. Use the test-ticket reference, status and history as evidence.
