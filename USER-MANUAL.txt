@@ -1,0 +1,40 @@
+Django Helpdesk — Group 3 User Manual
+
+Open Helpdesk (https://localhost/) in Chrome after completing the README.txt. Use disposable tickets and files for assessment. The lecturer can set the local administrator password during setup. For a queue-restricted demo, the administrator should create a separate staff account and grant it access to one demo queue.
+
+Submitter
+
+1. Open New Ticket or use Submit a Ticket on the homepage.
+2. Select a public queue. Enter a summary, description and a test email address. Attach a small genuine PNG or plain text file if needed. Select Submit Ticket.
+3. Retrieve the private ticket link from the demo notification. In the Windows demo, the console email backend prints notifications in the Django terminal. Keep the link private. The View a Ticket form also accepts the ticket reference, submitter email and ticket access key.
+4. Open the ticket through the private link, review the details and open an attachment if present.
+5. After staff resolve the ticket, open the private link and select Accept and Close. Confirm that the status shows Closed and the follow-up history records the transition from Resolved to Closed.
+
+Staff
+
+1. Select Log In and sign in with the staff demo account.
+2. Open All Tickets, filter by an assigned queue and select a test ticket. With queue permissions enabled, the staff account sees tickets in authorised queues.
+3. Open a permitted attachment from the ticket. To prepare the submitter's close-ticket demo, use the ticket response controls to record a resolution and set the status to Resolved.
+4. After the submitter accepts the resolution, reopen the ticket and check Follow ups for the recorded status change.
+
+Administrator
+
+1. Sign in with the local administrator account. In Django administration, open Users to manage the local demo accounts and queue permissions.
+2. Use a staff account with access to one queue to demonstrate its view of All Tickets, then use the appropriate authorised account for other queues.
+3. Open Security Log with an authorised account and inspect recorded security events. Use the demo database for assessment.
+
+Suggested lecturer walkthrough
+
+| Control | What to show |
+| --- | --- |
+| SEC-01 Queue access | The restricted staff member's queue-filtered ticket list. |
+| SEC-02 Attachment access | An authorised user opens an attachment from a test ticket. |
+| SEC-03 Login throttling | A normal test login succeeds. Use the regression evidence for throttling coverage. |
+| SEC-04 Public ticket lookup | The submitter opens the ticket using its private link. |
+| SEC-05 Ticket closure | The submitter selects Accept and Close and the staff view shows Closed with the follow-up entry. |
+| SEC-06 Upload validation | A genuine test PNG is accepted and listed on its ticket. |
+| SEC-07 User administration | An authorised administrator opens Users. |
+| SEC-08 Security audit | An authorised account opens Security Log and views recorded events. |
+| HTTPS | Show the secure Chrome connection, the HTTP 308 redirect and the Secure cookie flags. Use the saved Wireshark screenshots to show the TLS 1.3 handshake and encrypted records. |
+
+For screenshots, hide private ticket keys and cookie values. Use the test-ticket reference, status and history as evidence.

@@ -1,0 +1,15 @@
+{
+    admin off
+    skip_install_trust
+    default_bind 127.0.0.1 ::1
+    auto_https disable_redirects
+}
+
+http://localhost {
+    redir https://localhost{uri} 308
+}
+
+https://localhost {
+    tls internal
+    reverse_proxy 127.0.0.1:8091
+}
